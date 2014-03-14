@@ -83,6 +83,8 @@ def read_json(fname):
 
 
 def refresh_token():
+	global access_token
+
 	data = {
 		'client_id': client_id,
 		'client_secret': client_secret,
@@ -99,49 +101,51 @@ def refresh_token():
 	a = json.loads(resp)
 	write_param('access_token', a['access_token'])
 	write_param('refresh_token', a['refresh_token'])
+	access_token = read_param('access_token')
 
 
 def get_cached(url, name):
-	global access_token
 	md5 = hashlib.md5(url).hexdigest()
 	fname = os.environ['HOME'] + '/.cache/etvcc/' + name + '-' + md5 + '.json'
+	turl = url + '&access_token=' + access_token
+	
 	if not os.path.exists(fname):
 		tmpname = ''
 		if debug:
-			print 'loading %s: %s' % (name, url)
+			print 'loading %s: %s' % (name, turl)
 		try:
-			(tmpname, headers) = urllib.urlretrieve(url)
+			(tmpname, headers) = urllib.urlretrieve(turl)
 		except:
 			refresh_token()
-			access_token = read_param('access_token')
-			(tmpname, headers) = urllib.urlretrieve(url)
+			turl = url + '&access_token=' + access_token
+			(tmpname, headers) = urllib.urlretrieve(turl)
 		shutil.move(tmpname, fname)
 	a = read_json(fname)
 	return a
 
 
 def get_favorites():
-	url = api_root + 'video/bookmarks/folders.json?per_page=20&access_token=%s' % access_token
+	url = api_root + 'video/bookmarks/folders.json?per_page=20'
 	a = get_cached(url, 'folders')
 	return a['data']['folders']
 
 
 def get_bookmarks(folder_id):
-	url = api_root + 'video/bookmarks/folders/%d/items.json?per_page=20&access_token=%s' % (folder_id, access_token)
+	url = api_root + 'video/bookmarks/folders/%d/items.json?per_page=20' % (folder_id)
 	a = get_cached(url, 'folders')
 	return a['data']['bookmarks']
 
 
 def get_children(child_id, page=1):
-	url = api_root + '/video/media/%d/children.json?page=%d&per_page=20&order_by=on_air&access_token=%s' % \
-		(child_id, page, access_token)
+	url = api_root + '/video/media/%d/children.json?page=%d&per_page=20&order_by=on_air' % \
+		(child_id, page)
 	a = get_cached(url, 'children')
 	return a['data']['children'], a['data']['pagination']
 
 
 def get_stream_url(object_id):
-	url = api_root + 'video/media/%d/watch.json?access_token=%s&format=mp4&protocol=hls&bitrate=%d' % \
-		(object_id, access_token, bitrate)
+	url = api_root + 'video/media/%d/watch.json?format=mp4&protocol=hls&bitrate=%d' % \
+		(object_id, bitrate)
 	try:
         	a = get_cached(url, 'stream')
 	except:
