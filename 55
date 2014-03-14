@@ -1,0 +1,10 @@
+echo -e '\n=== date ==='
+date
+echo -e '\n=== uptime ==='
+uptime
+echo -e '\n=== who ==='
+who
+echo -e '\n=== disk ==='
+df -h
+echo -e '\n=== memory ==='
+free -h

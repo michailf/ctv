@@ -1,0 +1,1 @@
+omxplayer --key-config /home/pi/bin/omxp_keys.txt 1.mp4

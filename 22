@@ -1,0 +1,5 @@
+rm -rf ~/.cache/etvcc/*.json
+etvcc.py
+echo press ENTER for menu
+read
+. 00 # show menu
