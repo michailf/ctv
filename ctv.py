@@ -10,14 +10,12 @@ currtab = 0
 def print_tabs(favs):
 	cnt = 0
 	for f in favs:
-		m1 = ' '
-		m2 = ' '
 		if cnt == currtab:
-			m1 = '\x1b[1;33m*'
-			m2 = '\x1b[0m'
-		print m1, cnt+1, f['title'].encode('utf-8'), '   ', m2,
+			print '\x1b[1;33m%d-%s\x1b[0m' % (cnt+1, f['title'].encode('utf-8')),
+		else:
+			print '\x1b[32m%d\x1b[0m-%s' % (cnt+1, f['title'].encode('utf-8')),
 		cnt += 1
-	print
+	print '\x1b[32m0\x1b[0m-quit'
 
 def play_video(id):
 	rc, url = etvapi.get_stream_url(id)
@@ -28,6 +26,7 @@ def play_video(id):
 	if os.environ['HOME'] == '/home/pi':
 		args = [
 			'omxplayer',
+			'-b',
 			'--key-config',
 			'/home/pi/bin/omxp_keys.txt',
 			url
@@ -94,5 +93,6 @@ def loop(favs):
 def main():
 	favs = etvapi.get_favorites()
 	loop(favs)
+	ui.clear_screen()
 
 main()

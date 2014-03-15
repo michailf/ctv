@@ -29,8 +29,15 @@ def write_int(fname, num):
 def clear_screen():
 	print '\x1b[2J'
 
+def colorize(n):
+	if n < 8:
+		return '\x1b[3%d;1mO\x1b[0m' % (n)
+	if n < 16:
+		return '\x1b[3%d;1mO\x1b[0m \x1b[3%d;1mO\x1b[0m' % (n-8, n-8)
+	return '\x1b[3%d;1m|\x1b[0m \x1b[3%d;1m|\x1b[0m' % (n-16, n-16)
+
 def print_list(list):
-	print '='*60
+	print
 	cnt = 0
 	for item in list:
 		m1 = ' '
@@ -46,13 +53,14 @@ def print_list(list):
 			num = '%d/%d' % (cnum, item['children_count'])
 
 		tmstr = item['on_air'].encode('utf-8')
-		print '%s %2d %s %s %s %s' % \
+		print '%s %2d %s %s %s %s %s' % \
 			(m1, \
 			cnt + 1, \
 			unicode(item['short_name']).ljust(40)[:40].encode('utf-8'), \
 			num.ljust(7), \
 			tmstr, \
-			m2)
+			m2,
+			colorize(cnt + 1))
 		cnt += 1
 	if len(list) < 20:
 		print '\n'*(20-len(list)-1)
