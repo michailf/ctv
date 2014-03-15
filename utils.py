@@ -11,6 +11,11 @@ def read_param(name, default = None):
 	f.close()
 	return s
 
+def write_param(name, value):
+	f = open(os.environ['HOME'] + '/.config/etvcc/' + name + '.txt', 'wt')
+	f.write(value + '\n')
+	f.close()
+
 def ensure_private_dir(name):
 	dname = os.environ['HOME'] + '/' + name
 	if not os.path.exists(dname):

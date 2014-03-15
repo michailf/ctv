@@ -13,6 +13,7 @@ com.etvnet.media.live com.etvnet.media.fivestar com.etvnet.media.comments com.et
 # ==== params =====================================
 access_token = utils.read_param('access_token')
 debug = False
+bitrate = 1200
 # ==================================================
 
 def read_json(fname):
@@ -46,18 +47,17 @@ def refresh_token():
 def get_cached(url, name):
 	md5 = hashlib.md5(url).hexdigest()
 	fname = os.environ['HOME'] + '/.cache/etvcc/' + name + '-' + md5 + '.json'
-	turl = url + '&access_token=' + access_token
 	
 	if not os.path.exists(fname):
 		tmpname = ''
-		if debug:
-			print 'loading %s: %s' % (name, turl)
 		try:
+			turl = url + '&access_token=' + access_token
 			(tmpname, headers) = urllib.urlretrieve(turl)
 		except:
 			refresh_token()
 			turl = url + '&access_token=' + access_token
 			(tmpname, headers) = urllib.urlretrieve(turl)
+				
 		shutil.move(tmpname, fname)
 	a = read_json(fname)
 	return a
@@ -72,3 +72,20 @@ def get_bookmarks(folder_id):
 	url = api_root + 'video/bookmarks/folders/%d/items.json?per_page=20' % (folder_id)
 	a = get_cached(url, 'folders')
 	return a['data']['bookmarks']
+
+def get_stream_url(object_id):
+	url = api_root + 'video/media/%d/watch.json?format=mp4&protocol=hls&bitrate=%d' % \
+		(object_id, bitrate)
+	try:
+        	a = get_cached(url, 'stream')
+	except:
+        	return False, 'exception while getting url' 
+	if a['status_code'] != 200:
+		return False, 'cannot get video url'
+	return True, a['data']['url']
+
+def get_children(child_id, page):
+	url = api_root + '/video/media/%d/children.json?page=%d&per_page=20&order_by=on_air' % \
+		(child_id, page)
+	a = get_cached(url, 'children')
+	return a['data']['children']
