@@ -7,7 +7,7 @@ import time
 fd = sys.stdin.fileno()
 old_settings = termios.tcgetattr(fd)
 
-LISTDIR = '.cache/list/'
+LISTDIR = '.cache/etvcc/list/'
 MAX_ITEMS = 40
 
 def read_int(fname, def_num=1):
@@ -22,16 +22,16 @@ def read_int(fname, def_num=1):
 curr = read_int('curr', 0)
 
 def write_int(fname, num):
-	f = open(LISTDIR + fname, 'wt');
+	f = open(fname, 'wt');
 	f.write(str(num))
 	f.close()
 
 def get_time(dirname):
-	tm = os.path.getmtime(LISTDIR + dirname)
+	tm = os.path.getmtime(dirname)
 	tmstr = time.strftime('%Y-%m-%d', time.localtime(tm))
 	return tmstr
 
-def print_list(list):
+def print_list(dir, list):
 	print '\n'*40
 	print '='*100
 	cnt = 0
@@ -42,8 +42,8 @@ def print_list(list):
 			m1 = '\x1b[1;33m>'
 			m2 = '<\x1b[0m'
 
-		tmstr = get_time(dirname)
-		num = read_int(dirname + '/num')
+		tmstr = get_time(dir + dirname)
+		num = read_int(dir + dirname + '/num')
 		
 		print '%s %-20s %2d   %s %s' % (m1, dirname[:20], num, tmstr, m2)
 		cnt += 1
@@ -73,17 +73,18 @@ def move(list, ch):
 		num = (num - 1) % max_num
 		write_int('%s/num' % list[curr], num)
 
-def loop():
-	list = os.listdir(LISTDIR)[:MAX_ITEMS]
+def loop(dir, list):
 	while True:
-		print_list(list)
+		print_list(dir, list)
 		ch = getch()
 		if ch in [ '0', 'q' ] :
 			break
 		move(list, ch)
 
-try:
-	loop()
-finally:
-	termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-	print 'tty mode restored'
+def main():
+	try:
+		list = os.listdir(LISTDIR)[:MAX_ITEMS]
+		loop(list)
+	finally:
+		termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+		print 'tty mode restored'
