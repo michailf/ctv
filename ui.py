@@ -8,7 +8,7 @@ fd = sys.stdin.fileno()
 old_settings = termios.tcgetattr(fd)
 
 DIR = os.environ['HOME'] + '/.cache/etvcc/'
-MAX_ITEMS = 40
+PAGE_SIZE = 20
 
 def read_int(fname, def_num=1):
 	fn = DIR + fname
@@ -63,8 +63,8 @@ def print_list(list):
 			m2,
 			colorize(cnt + 1))
 		cnt += 1
-	if len(list) < 20:
-		s += '\n'*(20-len(list))
+	if len(list) < PAGE_SIZE:
+		s += '\n'*(PAGE_SIZE - len(list))
 	print s
 
 def getch():

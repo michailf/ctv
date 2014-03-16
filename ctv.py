@@ -78,15 +78,23 @@ def loop(favs):
 			if list[ui.curr]['type'] == 'MediaObject':
 				play_video(id)
 			else:
-				cnum = ui.read_int('%d.num' % id)
 				max_num = list[ui.curr]['children_count']
-				page = (cnum / 20) + 1
+				cnum = ui.read_int('%d.num' % id)
+				
+				idx = max_num - cnum
+				page = (idx / ui.PAGE_SIZE) + 1
 				children = etvapi.get_children(id, page)
-				id = children[cnum - (page-1)*20 - 1]['id']
+
+				childnum = idx - (page - 1) * ui.PAGE_SIZE
+#				print page, idx, childnum, max_num
+				id = children[childnum]['id']
+				ui.clear_screen()
+				print children[childnum]['short_name'], id
+				time.sleep(2)
 				play_video(id)
-				cnum = (cnum - 1) % max_num
-				if cnum == 0:
-					cnum = 1
+				cnum = cnum % max_num + 1
+				if cnum > max_num - 1:
+					cnum = max_num
 				ui.write_int('%d.num' % list[ui.curr]['id'], cnum)
 
 		ui.move(list, ch)

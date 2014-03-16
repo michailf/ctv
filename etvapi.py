@@ -1,4 +1,4 @@
-import json, os, urllib, urllib2, shutil, hashlib
+import json, os, urllib, urllib2, shutil, hashlib, time
 import utils
 
 # ==== constants ===================================
@@ -48,6 +48,11 @@ def get_cached(url, name):
 	md5 = hashlib.md5(url).hexdigest()
 	fname = os.environ['HOME'] + '/.cache/etvcc/' + name + '-' + md5 + '.json'
 	
+	if os.path.exists(fname):
+		age = (time.time() - os.path.getmtime(fname)) / 3600
+		if age > 10:
+			os.remove(fname)
+
 	if not os.path.exists(fname):
 		tmpname = ''
 		try:
