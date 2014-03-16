@@ -21,7 +21,9 @@ def print_tabs(favs):
 
 def play_video(id):
 	rc, url = etvapi.get_stream_url(id)
+	print 'play_video:', url
 	if rc == False:
+		print 'press ENTER to continue'
 		time.sleep(1)
 		return 2
 
@@ -81,21 +83,25 @@ def loop(favs):
 				max_num = list[ui.curr]['children_count']
 				cnum = ui.read_int('%d.num' % id)
 				
-				idx = max_num - cnum
-				page = (idx / ui.PAGE_SIZE) + 1
-				children = etvapi.get_children(id, page)
-
-				childnum = idx - (page - 1) * ui.PAGE_SIZE
-#				print page, idx, childnum, max_num
-				id = children[childnum]['id']
-				ui.clear_screen()
-				print children[childnum]['short_name'], id
-				time.sleep(2)
-				play_video(id)
-				cnum = cnum % max_num + 1
-				if cnum > max_num - 1:
-					cnum = max_num
-				ui.write_int('%d.num' % list[ui.curr]['id'], cnum)
+				while True:
+					idx = max_num - cnum
+					page = (idx / ui.PAGE_SIZE) + 1
+					children = etvapi.get_children(id, page)
+					childnum = idx - (page - 1) * ui.PAGE_SIZE
+	#				print page, idx, childnum, max_num
+					id = children[childnum]['id']
+					ui.clear_screen()
+					print children[childnum]['short_name'], id
+					time.sleep(2)
+					start_time = time.time()
+					rc = play_video(id)
+					played_time = int(time.time() - start_time)
+					cnum = cnum % max_num + 1
+					if cnum > max_num - 1:
+						cnum = max_num
+					ui.write_int('%d.num' % list[ui.curr]['id'], cnum)
+					if rc != 2 and (played_time < (children[childnum]['duration'] * 60 - 120)):
+						break
 
 		ui.move(list, ch)
 

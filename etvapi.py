@@ -59,6 +59,8 @@ def get_cached(url, name):
 			turl = url + '&access_token=' + access_token
 			(tmpname, headers) = urllib.urlretrieve(turl)
 		except:
+			print 'get_cached error'
+			time.sleep(2)
 			refresh_token()
 			turl = url + '&access_token=' + access_token
 			(tmpname, headers) = urllib.urlretrieve(turl)
@@ -84,8 +86,11 @@ def get_stream_url(object_id):
 	try:
         	a = get_cached(url, 'stream')
 	except:
+		print 'exception while getting url'
+		time.sleep(4)
         	return False, 'exception while getting url' 
 	if a['status_code'] != 200:
+		print a
 		return False, 'cannot get video url'
 	return True, a['data']['url']
 
