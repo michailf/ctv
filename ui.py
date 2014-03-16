@@ -39,6 +39,7 @@ def colorize(n):
 def print_list(list):
 	print
 	cnt = 0
+	s = ''
 	for item in list:
 		m1 = ' '
 		m2 = ' '
@@ -53,7 +54,7 @@ def print_list(list):
 			num = '%d/%d' % (cnum, item['children_count'])
 
 		tmstr = item['on_air'].encode('utf-8')
-		print '%s %2d %s %s %s %s %s' % \
+		s += '%s %2d %s %s %s %s %s\n' % \
 			(m1, \
 			cnt + 1, \
 			unicode(item['short_name']).ljust(40)[:40].encode('utf-8'), \
@@ -63,7 +64,8 @@ def print_list(list):
 			colorize(cnt + 1))
 		cnt += 1
 	if len(list) < 20:
-		print '\n'*(20-len(list)-1)
+		s += '\n'*(20-len(list))
+	print s
 
 def getch():
 	tty.setraw(sys.stdin.fileno())

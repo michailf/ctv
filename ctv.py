@@ -9,13 +9,15 @@ currtab = 0
 
 def print_tabs(favs):
 	cnt = 0
+	s = ''
 	for f in favs:
 		if cnt == currtab:
-			print '\x1b[1;33m%d-%s\x1b[0m' % (cnt+1, f['title'].encode('utf-8')),
+			s += '\x1b[1;33m%d-%s\x1b[0m ' % (cnt+1, f['title'].encode('utf-8'))
 		else:
-			print '\x1b[32m%d\x1b[0m-%s' % (cnt+1, f['title'].encode('utf-8')),
+			s += '\x1b[32m%d\x1b[0m-%s ' % (cnt+1, f['title'].encode('utf-8'))
 		cnt += 1
-	print '\x1b[32m0\x1b[0m-quit'
+	s += '\x1b[32m0\x1b[0m-quit\n'
+	print s
 
 def play_video(id):
 	rc, url = etvapi.get_stream_url(id)
@@ -66,7 +68,6 @@ def loop(favs):
 			break
 		if ch > '0' and ch < '4':
 			currtab = ord(ch) - 0x31
-			print currtab
 			f = favs[currtab]
 			list = etvapi.get_bookmarks(f['id'])
 			continue
