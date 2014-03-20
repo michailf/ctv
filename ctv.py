@@ -86,15 +86,16 @@ def loop(favs):
 				while True:
 					idx = max_num - cnum
 					page = (idx / ui.PAGE_SIZE) + 1
+					print 'id:', id, 'page:', page
 					children = etvapi.get_children(id, page)
 					childnum = idx - (page - 1) * ui.PAGE_SIZE
 	#				print page, idx, childnum, max_num
-					id = children[childnum]['id']
+					cid = children[childnum]['id']
 					ui.clear_screen()
-					print children[childnum]['short_name'], id
+					print children[childnum]['short_name'], cid
 					time.sleep(2)
 					start_time = time.time()
-					rc = play_video(id)
+					rc = play_video(cid)
 					played_time = int(time.time() - start_time)
 					cnum = cnum % max_num + 1
 					if cnum > max_num - 1:
