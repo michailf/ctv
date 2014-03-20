@@ -1,7 +1,0 @@
-echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
-echo -e '\033[1;31m22\033[0m  \033[1;33mETVNET\033[0m'
-echo -e '\033[1;31m33\033[0m  \033[1;33mweather (short)\033[0m'
-echo -e '\033[1;31m44\033[0m  \033[1;33mweather (long)\033[0m'
-echo -e '\033[1;31m55\033[0m  \033[1;33minfo\033[0m'
-echo -e '\033[1;31m555\033[0m \033[1;33mreset terminal\033[0m'
-echo -e '\033[1;31m556\033[0m \033[1;33mshutdown\033[0m'
