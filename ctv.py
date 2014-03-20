@@ -78,6 +78,7 @@ def loop(favs):
 			id = list[ui.curr]['id']
 
 			if list[ui.curr]['type'] == 'MediaObject':
+				ui.clear_screen()
 				play_video(id)
 			else:
 				max_num = list[ui.curr]['children_count']
