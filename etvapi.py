@@ -80,9 +80,9 @@ def get_bookmarks(folder_id):
 	a = get_cached(url, 'folders')
 	return a['data']['bookmarks']
 
-def get_stream_url(object_id):
+def get_stream_url(object_id, max_avail_bitrate):
 	url = api_root + 'video/media/%d/watch.json?format=mp4&protocol=hls&bitrate=%d' % \
-		(object_id, bitrate)
+		(object_id, max_avail_bitrate)
 	try:
         	a = get_cached(url, 'stream')
 	except:

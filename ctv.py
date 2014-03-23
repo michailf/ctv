@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, utils, etvapi, ui, time, subprocess
+import os, utils, etvapi, ui, time, subprocess, sys
 
 DIR = os.environ['HOME'] + '/.cache/etvcc/list/'
 utils.ensure_private_dir('.cache/etvcc/list/')
@@ -19,8 +19,8 @@ def print_tabs(favs):
 	s += '\x1b[32m0\x1b[0m-quit\n'
 	print s
 
-def play_video(id):
-	rc, url = etvapi.get_stream_url(id)
+def play_video(id, max_avail_bitrate):
+	rc, url = etvapi.get_stream_url(id, max_avail_bitrate)
 	print 'play_video:', url
 	if rc == False:
 		print 'press ENTER to continue'
@@ -51,7 +51,15 @@ def play_video(id):
 	print 'press ENTER to continue'
 	sys.stdin.readline()
 	return 1
-	
+
+def get_max_bitrate(child):
+	max = 0
+	for f in child['files']:
+		if f['format'] == 'mp4':
+			if max < f['bitrate']:
+				max = f['bitrate']
+	return max
+
 def loop(favs):
 	global currtab
 	f = favs[currtab]
@@ -63,7 +71,7 @@ def loop(favs):
 		
 		while True:
 			ch = ui.getch()
-			if ch in ['A', 'B', 'C', 'D', 'q', '0', '\r', '1', '2', '3']:
+			if ch in ['A', 'B', 'C', 'D', 'q', '0', '\r', '1', '2', '3', '4']:
 				break
 
 		if ch in [ '0', 'q' ] :
@@ -79,7 +87,9 @@ def loop(favs):
 
 			if list[ui.curr]['type'] == 'MediaObject':
 				ui.clear_screen()
-				play_video(id)
+				br = get_max_bitrate(list[ui.curr])
+				if br > 0:
+					play_video(id, br)
 			else:
 				max_num = list[ui.curr]['children_count']
 				cnum = ui.read_int('%d.num' % id)
@@ -90,13 +100,15 @@ def loop(favs):
 					print 'id:', id, 'page:', page
 					children = etvapi.get_children(id, page)
 					childnum = idx - (page - 1) * ui.PAGE_SIZE
-	#				print page, idx, childnum, max_num
 					cid = children[childnum]['id']
 					ui.clear_screen()
-					print children[childnum]['short_name'], cid
 					time.sleep(2)
 					start_time = time.time()
-					rc = play_video(cid)
+					br = get_max_bitrate(children[childnum])
+					if br > 0:
+						rc = play_video(cid, br)
+					else:
+						rc = 1
 					played_time = int(time.time() - start_time)
 					cnum = cnum % max_num + 1
 					if cnum > max_num - 1:
