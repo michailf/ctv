@@ -76,7 +76,7 @@ def loop(favs):
 
 		if ch in [ '0', 'q' ] :
 			break
-		if ch > '0' and ch < '4':
+		if ch > '0' and ch < '5':
 			currtab = ord(ch) - 0x31
 			f = favs[currtab]
 			list = etvapi.get_bookmarks(f['id'])
@@ -101,8 +101,9 @@ def loop(favs):
 					children = etvapi.get_children(id, page)
 					childnum = idx - (page - 1) * ui.PAGE_SIZE
 					cid = children[childnum]['id']
-					ui.clear_screen()
+					print children[childnum]['short_name']
 					time.sleep(2)
+					ui.clear_screen()
 					start_time = time.time()
 					br = get_max_bitrate(children[childnum])
 					if br > 0:
