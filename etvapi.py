@@ -4,7 +4,8 @@ import utils
 # ==== constants ===================================
 client_id = "a332b9d61df7254dffdc81a260373f25592c94c9"
 client_secret = '744a52aff20ec13f53bcfd705fc4b79195265497'
-oauth_url = 'https://accounts.etvnet.com/auth/oauth/token'
+code_url = 'https://accounts.etvnet.com/auth/oauth/device/code'
+token_url = 'https://accounts.etvnet.com/auth/oauth/token'
 api_root = 'https://secure.etvnet.com/api/v3.0/'
 scope = 'com.etvnet.media.browse com.etvnet.media.watch com.etvnet.media.bookmarks com.etvnet.media.history \
 com.etvnet.media.live com.etvnet.media.fivestar com.etvnet.media.comments com.etvnet.persons com.etvnet.notifications'
@@ -35,7 +36,7 @@ def refresh_token():
 		}
 
 	udata = urllib.urlencode(data)
-	req = urllib2.Request(oauth_url)
+	req = urllib2.Request(token_url)
 	resp = urllib2.urlopen(req, udata).read()
 	if debug:
 		print 'refresh_token resp:', resp
@@ -47,7 +48,7 @@ def refresh_token():
 def get_cached(url, name):
 	md5 = hashlib.md5(url).hexdigest()
 	fname = os.environ['HOME'] + '/.cache/etvcc/' + name + '-' + md5 + '.json'
-	
+
 	if os.path.exists(fname):
 		age = (time.time() - os.path.getmtime(fname)) / 3600
 		if age > 10:
@@ -64,7 +65,7 @@ def get_cached(url, name):
 			refresh_token()
 			turl = url + '&access_token=' + access_token
 			(tmpname, headers) = urllib.urlretrieve(turl)
-				
+
 		shutil.move(tmpname, fname)
 	a = read_json(fname)
 	return a
@@ -88,7 +89,7 @@ def get_stream_url(object_id, max_avail_bitrate):
 	except:
 		print 'exception while getting url'
 		time.sleep(4)
-        	return False, 'exception while getting url' 
+        	return False, 'exception while getting url'
 	if a['status_code'] != 200:
 		print a
 		return False, 'cannot get video url'

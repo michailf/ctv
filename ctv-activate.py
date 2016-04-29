@@ -1,20 +1,22 @@
 #!/usr/bin/python
 
-# activate etvnet on local profile
+# activate console etvnet player (ctv) on etvnet.com
+# Instructions:
+# - run ctv-activate.py.
+# - copy activation code.
+# - press 1 to save the code locally.
+# - go to etvnet.com website to 'Menu/Activate STB' and enter the code.
+# - put some movies into favorites groups on etvnet.com.
+# - run ctv.py to load your favorites and view movies.
 
-import urllib, urllib2, json, sys, os
-
-code_url = 'https://accounts.etvnet.com/auth/oauth/device/code'
-token_url = 'https://accounts.etvnet.com/auth/oauth/token'
-scope = 'com.etvnet.media.browse com.etvnet.media.watch com.etvnet.media.bookmarks com.etvnet.media.history \
-com.etvnet.media.live com.etvnet.media.fivestar com.etvnet.media.comments com.etvnet.persons com.etvnet.notifications'
+import urllib, urllib2, json, sys, os, etvapi, utils
 
 def get_code():
 
     data = {
-        'client_id': 'a332b9d61df7254dffdc81a260373f25592c94c9',
-        'client_secret': '744a52aff20ec13f53bcfd705fc4b79195265497',
-        'scope': scope
+        'client_id': etvapi.client_id,
+        'client_secret': etvapi.client_secret,
+        'scope': etvapi.scope
     }
 
     udata = urllib.urlencode(data)
@@ -37,22 +39,12 @@ def get_code():
 
     return a['device_code']
 
-def write_param(name, value):
-    f = open(os.environ['HOME'] + '/.config/etvcc/' + name + '.txt', 'wt')
-    f.write(value)
-    f.close()
-
-def ensure_private_dir(name):
-    dname = os.environ['HOME'] + '/' + name
-    if not os.path.exists(dname):
-        os.mkdir(dname)
-
 def get_token(device_code):
 
     data = {
-        'client_id': 'a332b9d61df7254dffdc81a260373f25592c94c9',
-        'client_secret': '744a52aff20ec13f53bcfd705fc4b79195265497',
-        'scope': scope,
+        'client_id': etvapi.client_id,
+        'client_secret': etvapi.client_secret,
+        'scope': etvapi.scope,
         'grant_type': 'http://oauth.net/grant_type/device/1.0',
         'code': device_code
     }
@@ -66,12 +58,12 @@ def get_token(device_code):
         print '   ERROR:', error
         print '   ', resp
         sys.exit(1)
-    
+
     print '\n\n\n'
     print '    access_token: ', a['access_token']
     print '    refresh_token:', a['refresh_token']
     print '\n\n\n'
-    print '    save to etvcc profile?'
+    print '    save to ctv profile?'
     print '    1     confirm'
     print '    0     cancel'
     print
@@ -81,13 +73,13 @@ def get_token(device_code):
         print '    canceled'
         sys.exit(1)
 
-    ensure_private_dir('.cache')
-    ensure_private_dir('.cache/etvcc')
-    ensure_private_dir('.config')
-    ensure_private_dir('.config/etvcc')
+    utils.ensure_private_dir('.cache')
+    utils.ensure_private_dir('.cache/etvcc')
+    utils.ensure_private_dir('.config')
+    utils.ensure_private_dir('.config/etvcc')
 
-    write_param('access_token', a['access_token'])
-    write_param('refresh_token', a['refresh_token'])
+    utils.write_param('access_token', a['access_token'])
+    utils.write_param('refresh_token', a['refresh_token'])
     print '    activated'
 
 device_code = get_code()

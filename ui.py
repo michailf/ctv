@@ -29,13 +29,6 @@ def write_int(fname, num):
 def clear_screen():
 	print '\x1b[2J'
 
-def colorize(n):
-	if n < 8:
-		return '\x1b[3%d;1mO\x1b[0m' % (n)
-	if n < 16:
-		return '\x1b[3%d;1mO\x1b[0m \x1b[3%d;1mO\x1b[0m' % (n-8, n-8)
-	return '\x1b[3%d;1m|\x1b[0m \x1b[3%d;1m|\x1b[0m' % (n-16, n-16)
-
 def print_list(list):
 	print
 	cnt = 0
@@ -44,8 +37,8 @@ def print_list(list):
 		m1 = ' '
 		m2 = ' '
 		if curr == cnt:
-			m1 = '\x1b[1;33m>'
-			m2 = '<\x1b[0m'
+			m1 = '\x1b[1;33m*'
+			m2 = '\x1b[0m'
 
 		if item['type'] == 'MediaObject':
 			num = ' - '
@@ -54,23 +47,25 @@ def print_list(list):
 			num = '%d/%d' % (cnum, item['children_count'])
 
 		tmstr = item['on_air'].encode('utf-8')
-		s += '%s %2d %s %s %s %s %s\n' % \
+		s += '%s %2d %s %s %s %s\n' % \
 			(m1, \
 			cnt + 1, \
 			unicode(item['short_name']).ljust(40)[:40].encode('utf-8'), \
 			num.ljust(7), \
 			tmstr, \
-			m2,
-			colorize(cnt + 1))
+			m2)
 		cnt += 1
 	if len(list) < PAGE_SIZE:
 		s += '\n'*(PAGE_SIZE - len(list))
 	print s
 
 def getch():
-	tty.setraw(sys.stdin.fileno())
-	ch = sys.stdin.read(1)
-	termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+	while True:
+		tty.setraw(sys.stdin.fileno())
+		ch = sys.stdin.read(1)
+		termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+		if ch in ['A', 'B', 'C', 'D', 'q', '0', '\r', '1', '2', '3', '4']:
+			break
 	return ch
 
 def move(list, ch):
@@ -92,13 +87,3 @@ def move(list, ch):
 			else:
 				num = ((num - 2) % max_num) + 1
 			write_int('%d.num' % list[curr]['id'], num)
-
-def loop(list):
-	while True:
-		print_list(list)
-		ch = getch()
-		if ch in [ '0', 'q' ] :
-			break
-		move(list, ch)
-
-#termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

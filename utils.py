@@ -1,10 +1,15 @@
 import os
 
-def read_param(name, default = None):
-	fname = os.environ['HOME'] + '/.config/etvcc/' + name + '.txt'
+config_dir = os.environ['HOME'] + '/.config/etvcc/'
 
-	if not os.path.exists(fname) and default is not None:
-		return default
+def read_param(name, default = None):
+	fname = config_dir + name + '.txt'
+
+	if not os.path.exists(fname):
+		if default is not None:
+			return default
+		else:
+			raise BaseException('cannot read parameter from config: ' + name)
 
 	f = open(fname)
 	s = f.readline().strip()
@@ -12,7 +17,7 @@ def read_param(name, default = None):
 	return s
 
 def write_param(name, value):
-	f = open(os.environ['HOME'] + '/.config/etvcc/' + name + '.txt', 'wt')
+	f = open(config_dir + name + '.txt', 'wt')
 	f.write(value + '\n')
 	f.close()
 
