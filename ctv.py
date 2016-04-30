@@ -24,7 +24,7 @@ def print_tabs(favs):
 	print s
 
 def run_player(id, max_avail_bitrate):
-	rc, url = etvapi.get_stream_url(id, max_avail_bitrate)
+	rc, url = etvapi.get_stream_url(id, 400)
 	print 'play_video:', url
 	if rc == False:
 		print 'press ENTER to continue'
@@ -68,13 +68,14 @@ def play_single_video(child):
 	ui.clear_screen()
 	br = get_max_bitrate(child)
 	if br > 0:
-		rc = run_player(cid, br)
+		rc = run_player(child['id'], br)
 	else:
 		rc = 1
 	return rc
 
 def play_all_container(list):
 	max_num = list[ui.curr]['children_count']
+	id = list[ui.curr]['id']
 	cnum = ui.read_int('%d.num' % id)
 
 	while True:
