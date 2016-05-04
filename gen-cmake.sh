@@ -12,6 +12,11 @@ if [ "_$OS" == "_Darwin" ] ; then
 	mkdir -p ${BDIR}b
 	cd ${BDIR}b
 	cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/macports.cmake $SRCDIR
+
+	rm -rf ${BDIR}-rpi
+	mkdir -p ${BDIR}-rpi
+	cd ${BDIR}-rpi
+	cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/rpi-cross.cmake $SRCDIR
 else
 	rm -rf ${BDIR}b
 	mkdir -p ${BDIR}b

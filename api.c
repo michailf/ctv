@@ -169,27 +169,51 @@ append_movie(struct movie_list *list, struct movie_entry *e)
 	list->count++;
 }
 
+static struct movie_entry *
+create_movie(json_object *obj)
+{
+	struct movie_entry *e = malloc(sizeof(struct movie_entry));
+
+	e->sel = 0;
+	e->id = get_int(obj, "id");
+	e->children_count = get_int(obj, "children_count");
+	e->name = strdup(get_str(obj, "name"));
+	e->description = strdup(get_str(obj, "description"));
+	e->on_air = strdup(get_str(obj, "on_air"));
+
+	return e;
+}
+
+static json_object *
+get_data(json_object *root, const char *name)
+{
+	json_object *data, *obj;
+	json_bool jres;
+
+	jres = json_object_object_get_ex(root, "data", &data);
+	if (jres == FALSE)
+		err(1, "Cannot get data");
+
+	jres = json_object_object_get_ex(data, name, &obj);
+	if (jres == FALSE)
+		err(1, "Cannot get data/%s", name);
+
+	return obj;
+}
+
 static struct movie_list *
 parse_favorites(json_object *root)
 {
 	struct movie_list *list = calloc(1, sizeof(struct movie_list));
 
-	json_object *data, *bookmarks, *bookmark;
-	json_bool jres;
+	json_object *bookmarks, *bookmark;
 	int bookmarks_count;
 
 	int status = get_int(root, "status_code");
 	if (status != 200)
 		err(1, "invalid status %d", status);
 
-	jres = json_object_object_get_ex(root, "data", &data);
-	if (jres == FALSE)
-		err(1, "Cannot get data");
-
-	jres = json_object_object_get_ex(data, "bookmarks", &bookmarks);
-	if (jres == FALSE)
-		err(1, "Cannot get bookmarks");
-
+	bookmarks = get_data(root, "bookmarks");
 	bookmarks_count = json_object_array_length(bookmarks);
 
 	for (int i = 0; i < bookmarks_count; i++) {
@@ -197,13 +221,7 @@ parse_favorites(json_object *root)
 		if (bookmark == NULL)
 			err(1, "Cannot get bookmark[%d]", i);
 
-		struct movie_entry *e = malloc(sizeof(struct movie_entry));
-		e->sel = 0;
-		e->id = get_int(bookmark, "id");
-		e->children_count = get_int(bookmark, "children_count");
-		e->name = strdup(get_str(bookmark, "name"));
-		e->description = strdup(get_str(bookmark, "description"));
-		e->on_air = strdup(get_str(bookmark, "on_air"));
+		struct movie_entry *e = create_movie(bookmark);
 		append_movie(list, e);
 	}
 
@@ -215,24 +233,17 @@ load_favorites()
 {
 	char url[500];
 	json_bool jres;
-	json_object *obj, *folder;
+	json_object *root, *folders, *folder;
 
 	snprintf(url, 499, "%s/video/bookmarks/folders.json?per_page=20", api_root);
-	json_object *root = get_cached(url, "favorites");
 
-	jres = json_object_object_get_ex(root, "data", &obj);
-	if (jres == FALSE)
-		err(1, "Cannot get data");
-
-	jres = json_object_object_get_ex(obj, "folders", &obj);
-	if (jres == FALSE)
-		err(1, "Cannot get folders");
-
-	int folders_count = json_object_array_length(obj);
+	root = get_cached(url, "favorites");
+	folders = get_data(root, "folders");
+	int folders_count = json_object_array_length(folders);
 	int folder_id = 0;
 
 	for (int i = 0; i < folders_count; i++) {
-		folder = json_object_array_get_idx(obj, i);
+		folder = json_object_array_get_idx(folders, i);
 		if (folder == NULL)
 			err(1, "Cannot get folder[%d]", i);
 
@@ -270,22 +281,58 @@ api_init(const char *cache_dir)
 }
 
 
-// def get_stream_url(object_id, max_avail_bitrate):
-// 	url = api_root + 'video/media/%d/watch.json?format=mp4&protocol=hls&bitrate=%d' % \
-// 		(object_id, max_avail_bitrate)
-// 	try:
-//         	a = get_cached(url, 'stream')
-// 	except:
-// 		print 'exception while getting url'
-// 		time.sleep(4)
-//         	return False, 'exception while getting url'
-// 	if a['status_code'] != 200:
-// 		print a
-// 		return False, 'cannot get video url'
-// 	return True, a['data']['url']
-// 
-// def get_children(child_id, page):
-// 	url = api_root + '/video/media/%d/children.json?page=%d&per_page=20&order_by=on_air' % \
-// 		(child_id, page)
-// 	a = get_cached(url, 'children')
-// 	return a['data']['children']
+char *
+get_stream_url(int object_id, int bitrate)
+{
+	char url[1000];
+	char name[100];
+	json_object *root;
+	json_object *obj;
+	json_bool jres;
+
+	snprintf(url, 499, "%svideo/media/%d/watch.json?format=mp4&protocol=hls&bitrate=%d",
+		 api_root, object_id, bitrate);
+	snprintf(name, 99, "stream-%d", object_id);
+
+	root = get_cached(url, name);
+
+	int status = get_int(root, "status_code");
+	if (status != 200)
+		return NULL;
+
+	jres = json_object_object_get_ex(root, "data", &obj);
+	if (jres == FALSE)
+		err(1, "Cannot get data");
+
+	char *stream_url = strdup(get_str(obj, "url"));
+	json_object_put(root);
+	return stream_url;
+}
+
+struct movie_entry *
+get_child(int container_id, int idx)
+{
+	char url[500];
+	char name[100];
+	json_object *root, *children, *child;
+
+	int page = (idx / 20) + 1;
+	int pos_on_page = idx - (page - 1) * 20;
+
+	snprintf(url, 499, "%s/video/media/%d/children.json?page=%d&per_page=20&order_by=on_air",
+		 api_root, container_id, page);
+
+	snprintf(name, 99, "child-%d-%d", container_id, idx);
+
+	root = get_cached(url, name);
+	children = get_data(root, "children");
+	int children_count = json_object_array_length(children);
+
+	if (pos_on_page >= children_count)
+		err(1, "cannot get child by idx %d", idx);
+
+	child = json_object_array_get_idx(children, pos_on_page);
+	struct movie_entry *e = create_movie(child);
+
+	return e;
+}

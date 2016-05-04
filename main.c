@@ -93,6 +93,7 @@ init_ui(struct ui *ui)
 	start_color();
 	getmaxyx(stdscr, ui->height, ui->width);
 	init_pair(1, COLOR_RED, COLOR_BLACK);
+	init_pair(2, COLOR_WHITE, COLOR_RED);
 	refresh();
 	noecho();
 	cbreak();
@@ -180,9 +181,37 @@ prev_number()
 static void
 on_exit()
 {
-	printw("\nPress ENTER\n");
+	attron(COLOR_PAIR(2));
+	mvaddstr(10, 10, "CTV exited. Press any key.");
 	getch();
+	flushinp();
 	endwin();
+}
+
+static void
+run_player(const char *url)
+{
+	char cmd[2000];
+	snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' > /dev/null 2>&1", url);
+	system(cmd);
+}
+
+static void
+play_movie()
+{
+	struct movie_entry *e = list->items[list->sel];
+	if (e->children_count == 0) {
+		char *url = get_stream_url(e->id, 400);
+		run_player(url);
+		free(url);
+		return;
+	}
+
+	struct movie_entry *child = get_child(e->id, e->sel);
+	char *url = get_stream_url(child->id, 400);
+	run_player(url);
+	free(child);
+	free(url);
 }
 
 int
@@ -220,19 +249,20 @@ main(int argc, char **argv)
 				break;
 			case 'D':
 			case KEY_LEFT:
-				if (ui.scroll == eNumbers)
+				if (ui.scroll == eNames)
+					quit = 1;
+				else if (ui.scroll == eNumbers)
 					ui.scroll = eNames;
 				break;
 			case 'C':
 			case KEY_RIGHT:
-				if (ui.scroll == eNames)
+				if (ui.scroll == eNumbers)
+					play_movie();
+				else if (ui.scroll == eNames)
 					ui.scroll = eNumbers;
 				break;
 		}
 	}
-
-//	usage();
-//	synopsis();
 }
 
 
