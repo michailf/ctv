@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.0)
 project(ctv C)
 
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")

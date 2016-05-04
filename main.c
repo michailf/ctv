@@ -109,7 +109,8 @@ struct ui ui;
 static void
 draw_list()
 {
-	for (int i = 0; i < list->count; i++) {
+	int i;
+	for (i = 0; i < list->count; i++) {
 
 		if (i == list->sel && ui.scroll == eNames) {
 			wattron(ui.win, COLOR_PAIR(1));
@@ -179,7 +180,7 @@ prev_number()
 }
 
 static void
-on_exit()
+exit_handler()
 {
 	attron(COLOR_PAIR(2));
 	mvaddstr(10, 10, "CTV exited. Press any key.");
@@ -220,7 +221,7 @@ main(int argc, char **argv)
 	int quit = 0;
 	init(argc, argv);
 	init_ui(&ui);
-	atexit(on_exit);
+	atexit(exit_handler);
 
 	list = load_favorites();
 
