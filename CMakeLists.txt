@@ -8,6 +8,7 @@ set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 find_library(curl_LIBRARY NAMES curl)
 find_package(OpenSSL REQUIRED)
 find_package(LibXml2 REQUIRED)
+find_library(ncurses_LIBRARY NAMES ncursesw)
 find_library(json_LIBRARY NAMES json-c)
 
 include(../../w/common/macros.cmake)
@@ -20,4 +21,4 @@ gen_version_c()
 
 add_executable(ctv main.c api.c version.c api.h)
 add_dependencies(ctv mkversion mkresource)
-target_link_libraries(ctv ncursesw ${json_LIBRARY} ${curl_LIBRARY} svc)
+target_link_libraries(ctv ${ncurses_LIBRARY} ${json_LIBRARY} ${curl_LIBRARY} svc)
