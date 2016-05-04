@@ -266,14 +266,17 @@ void
 api_init(const char *cache_dir)
 {
 	cache_path = strdup(cache_dir);
+	char fname[PATH_MAX];
 
-	FILE *f = fopen("/Users/svoilokov/.config/etvcc/access_token.txt", "rt");
+	snprintf(fname, PATH_MAX-1, "%s/.config/etvcc/access_token.txt", getenv("HOME"));
+	FILE *f = fopen(fname, "rt");
 	access_token = malloc(100);
 	fgets(access_token, 100, f);
 	access_token[strlen(access_token)-1] = 0;
 	fclose(f);
 
-	f = fopen("/Users/svoilokov/.config/etvcc/refresh_token.txt", "rt");
+	snprintf(fname, PATH_MAX-1, "%s/.config/etvcc/refresh_token.txt", getenv("HOME"));
+	f = fopen(fname, "rt");
 	refresh_token = malloc(100);
 	fgets(refresh_token, 100, f);
 	refresh_token[strlen(refresh_token)-1] = 0;
