@@ -236,6 +236,22 @@ play_movie()
 	print_status("                 ");
 }
 
+static int
+wait_event()
+{
+	struct timeval tv = { 100L, 0L };
+	fd_set fds;
+	FD_ZERO(&fds);
+	FD_SET(0, &fds);
+	return select(1, &fds, NULL, NULL, &tv);
+}
+
+static int
+read_joystick()
+{
+	return -1;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -244,6 +260,7 @@ main(int argc, char **argv)
 	init_ui(&ui);
 	status_init(ui.win, ui.height - 22);
 	atexit(exit_handler);
+	timeout(0);
 
 	print_status("Loading favorites");
 	list = load_favorites();
@@ -252,7 +269,17 @@ main(int argc, char **argv)
 	while (!quit) {
 		draw_list();
 		wrefresh(ui.win);
-		int ch = getch();
+
+		int has_events = wait_event();
+		if (has_events == 0)
+			continue;
+
+		int ch = -1;
+
+		if (has_events == 1)
+			ch = getch();
+		else if (has_events == 2)
+			ch = read_joystick();
 
 		switch (ch) {
 			case 'q': case 'Q':
