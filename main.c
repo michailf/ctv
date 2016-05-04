@@ -67,7 +67,6 @@ init(int argc, char **argv)
 	mkdir(cache_dir, 0700);
 	strcat(cache_dir, "etvcc/");
 	mkdir(cache_dir, 0700);
-	api_init();
 }
 
 struct movie_list *list; /* read from my favorites */
@@ -184,8 +183,9 @@ prev_number()
 static void
 exit_handler()
 {
-	attron(COLOR_PAIR(2));
-	mvaddstr(10, 10, "CTV exited. Press any key.");
+	timeout(-1);
+//	attron(COLOR_PAIR(2));
+//	mvaddstr(10, 10, "CTV exited. Press any key.");
 	getch();
 	flushinp();
 	endwin();
@@ -222,13 +222,20 @@ play_movie()
 	struct movie_entry *e = list->items[list->sel];
 	if (e->children_count == 0) {
 		char *url = get_stream_url(e->id, 400);
+		if (api_errno != 0)
+			statusf("play_movie: %s", api_error());
 		run_player(url);
 		free(url);
 		return;
 	}
 
 	struct movie_entry *child = get_child(e->id, e->sel);
+	if (api_errno != 0)
+		statusf("part %d: %s", e->sel, api_error());
+
 	char *url = get_stream_url(child->id, 400);
+	if (api_errno != 0)
+		statusf("play_movie[%d]: %s", e->sel, api_error());
 	print_status("Playing movie...");
 	run_player(url);
 	free(child);
@@ -262,8 +269,16 @@ main(int argc, char **argv)
 	atexit(exit_handler);
 	timeout(0);
 
+	print_status("Connecting to etvnet.com");
+	api_init();
+	if (api_errno != 0)
+		statusf("%s", api_error());
+
 	print_status("Loading favorites");
 	list = load_favorites();
+	if (api_errno != 0)
+		statusf("%s", api_error());
+
 	print_status("UP,DOWN:move RIGHT:select LEFT:exit");
 
 	while (!quit) {

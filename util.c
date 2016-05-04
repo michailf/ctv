@@ -1,6 +1,7 @@
 #include "util.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include "common/log.h"
 
 static WINDOW *log_win;
 static int log_row;
@@ -21,12 +22,11 @@ statusf(const char *fmt, ...)
 
 	wattron(log_win, COLOR_PAIR(2));
 	mvwaddstr(log_win, log_row, 2, "                                                                  ");
-	wattroff(log_win, COLOR_PAIR(2));
-	wrefresh(log_win);
 	wmove(log_win, log_row, 3);
 	vwprintw(log_win, fmt, args);
+	wattroff(log_win, COLOR_PAIR(2));
+	wrefresh(log_win);
 
 	va_end (args);
-
 	exit(1);
 }

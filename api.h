@@ -14,7 +14,9 @@ struct movie_list {
 };
 
 void api_init();
+const char *api_error();
+extern int api_errno;
+
 struct movie_list *load_favorites();
 char *get_stream_url(int object_id, int bitrate);
 struct movie_entry *get_child(int container_id, int idx);
-
