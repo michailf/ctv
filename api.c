@@ -1,12 +1,13 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <err.h>
 #include <json-c/json.h>
 #include "common/net.h"
 #include "common/fs.h"
 #include "api.h"
+#include "util.h"
 
 static const char client_id[] = "a332b9d61df7254dffdc81a260373f25592c94c9";
 static const char client_secret[] = "744a52aff20ec13f53bcfd705fc4b79195265497";
@@ -68,7 +69,7 @@ get_int(json_object *obj, const char *name)
 
 	jres = json_object_object_get_ex(obj, name, &child_obj);
 	if (jres == FALSE)
-		err(1, "Cannot get %s", name);
+		statusf("Cannot get %s", name);
 
 	return json_object_get_int(child_obj);
 }
@@ -95,11 +96,11 @@ authorize()
 	snprintf(fname, PATH_MAX-1, "%s/.local/etvcc/token.json", getenv("HOME"));
 	rc = fetch(url, fname);
 	if (rc != 0)
-		err(1, "cannot authorize. Error: %d", rc);
+		statusf("cannot authorize. Error: %d", rc);
 
 	root = json_object_from_file(fname);
 	if (root == NULL)
-		err(1, "cannot load %s", fname);
+		statusf("cannot load %s", fname);
 
 	if (access_token != NULL)
 		free(access_token);
@@ -142,11 +143,11 @@ get_cached(const char *url, const char *name)
 	error = get_str(root, "error");
 
 	if (rc != 0 || root == NULL)
-		err(1, "cannot load %s. rc: %d", fname, rc);
+		statusf("cannot load %s. rc: %d", fname, rc);
 
 	if (error != NULL) {
 		remove(fname);
-		err(1, "api error: %s", error);
+		statusf("api error: %s", error);
 	}
 
 	return root;
@@ -196,11 +197,11 @@ get_data(json_object *root, const char *name)
 
 	jres = json_object_object_get_ex(root, "data", &data);
 	if (jres == FALSE)
-		err(1, "Cannot get data");
+		statusf("Cannot get data");
 
 	jres = json_object_object_get_ex(data, name, &obj);
 	if (jres == FALSE)
-		err(1, "Cannot get data/%s", name);
+		statusf("Cannot get data/%s", name);
 
 	return obj;
 }
@@ -216,7 +217,7 @@ parse_favorites(json_object *root)
 
 	int status = get_int(root, "status_code");
 	if (status != 200)
-		err(1, "invalid status %d", status);
+		statusf("invalid status %d", status);
 
 	bookmarks = get_data(root, "bookmarks");
 	bookmarks_count = json_object_array_length(bookmarks);
@@ -224,7 +225,7 @@ parse_favorites(json_object *root)
 	for (i = 0; i < bookmarks_count; i++) {
 		bookmark = json_object_array_get_idx(bookmarks, i);
 		if (bookmark == NULL)
-			err(1, "Cannot get bookmark[%d]", i);
+			statusf("Cannot get bookmark[%d]", i);
 
 		struct movie_entry *e = create_movie(bookmark);
 		append_movie(list, e);
@@ -250,7 +251,7 @@ load_favorites()
 	for (i = 0; i < folders_count; i++) {
 		folder = json_object_array_get_idx(folders, i);
 		if (folder == NULL)
-			err(1, "Cannot get folder[%d]", i);
+			statusf("Cannot get folder[%d]", i);
 
 		const char *title = get_str(folder, "title");
 		if (strcmp(title, "serge") == 0) {
@@ -260,7 +261,7 @@ load_favorites()
 	}
 
 	if (folder_id == 0)
-		err(1, "cannot get my favorite folder");
+		statusf("cannot get my favorite folder");
 
 	root = fetch_favorite(folder_id);
 	struct movie_list *list = parse_favorites(root);
@@ -307,7 +308,7 @@ get_stream_url(int object_id, int bitrate)
 
 	jres = json_object_object_get_ex(root, "data", &obj);
 	if (jres == FALSE)
-		err(1, "Cannot get data");
+		statusf("Cannot get data");
 
 	char *stream_url = strdup(get_str(obj, "url"));
 	json_object_put(root);
@@ -334,7 +335,7 @@ get_child(int container_id, int idx)
 	int children_count = json_object_array_length(children);
 
 	if (pos_on_page >= children_count)
-		err(1, "cannot get child by idx %d", idx);
+		statusf("cannot get child by idx %d", idx);
 
 	child = json_object_array_get_idx(children, pos_on_page);
 	struct movie_entry *e = create_movie(child);

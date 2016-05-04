@@ -19,6 +19,6 @@ add_subdirectory(../../w/common bin)
 
 gen_version_c()
 
-add_executable(ctv main.c api.c version.c api.h)
+add_executable(ctv main.c api.c version.c api.h util.c util.h)
 add_dependencies(ctv mkversion mkresource)
 target_link_libraries(ctv ${ncurses_LIBRARY} ${json_LIBRARY} ${curl_LIBRARY} svc)

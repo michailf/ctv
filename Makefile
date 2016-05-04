@@ -1,25 +1,29 @@
+AR = arm-none-eabi-ar
 CC = arm-none-eabi-gcc
 #CFLAGS = -mfloat-abi=hard -fno-short-enums -Wa,-march=armv6 -Wa,-mcpu=arm1176jzf-s
 CFLAGS := -nostdlib \
--fno-pic -static  \
+-fno-pic -static \
 -O2 -Wall -MD -ggdb -Werror -mfloat-abi=hard \
 -Wa,-march=armv6 -Wa,-mcpu=arm1176jzf-s \
 -I${HOME}/w \
--I${HOME}/b/rpi-root/usr/include \
--I${HOME}/b/rpi-root/usr/include/arm-linux-gnueabihf \
--I${HOME}/b/rpi-root/usr/src/linux-headers-3.16.0-4-common/include/uapi \
--I${HOME}/b/rpi-root/linux-4.1.6/include
+-I${HOME}/b/rpi-root2/usr/include \
+-I${HOME}/b/rpi-root2/usr/include/arm-linux-gnueabihf
 
-LIBS=-L${HOME}/b/rpi-root/usr/lib/arm-linux-gnueabihf/ -L${HOME}/b/rpi-root/usr/lib/gcc-cross/arm-linux-gnueabihf/5
+LIBS=-L${HOME}/b/rpi-root2/usr/lib/arm-linux-gnueabihf
 
-all: test-rpi ctv-rpi
+all: test-rpi ctv-rpi libsvc.a
 
 test-rpi: test.o crt0.o
-	${CC} ${CFLAGS} test.o -o $@ -L.
+	${CC} ${CFLAGS} crt0.o test.o ${LIBS} -lc -lgcc -o $@
 
-ctv-rpi: api.o crt0.o
-	${CC} ${CFLAGS} api.o ${LIBS} -ljson-c -lc -lm -lgcc -lstdc++ -o $@
+net.o : ~/w/common/net.c
+
+libsvc.a: net.o
+	${AR} -vsr $@ $< 
+
+ctv-rpi: api.o crt0.o libsvc.a
+	${CC} ${CFLAGS} api.o -L. -lsvc ${LIBS} -ljson-c -lc -lm -lgcc -lstdc++ -o $@
 
 clean:
-	rm *.o
+	rm -f *.o *.d test-rpi ctv-rpi
 

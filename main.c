@@ -13,6 +13,7 @@
 #include "common/struct.h"
 #include "version.h"
 #include "api.h"
+#include "util.h"
 
 static void
 synopsis()
@@ -194,7 +195,12 @@ static void
 run_player(const char *url)
 {
 	char cmd[2000];
-	snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' > /dev/null 2>&1", url);
+
+	if (strcmp("/home/pi", getenv("HOME")) == 0)
+		snprintf(cmd, 1999, "omxplayer --blank --key-config /home/pi/bin/omxp_keys.txt '%s'", url);
+	else
+		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s'", url);
+
 	system(cmd);
 }
 
@@ -202,7 +208,8 @@ static void
 print_status(const char *msg)
 {
 	wattron(ui.win, COLOR_PAIR(3));
-	mvwaddstr(ui.win, 25, 3, msg);
+	mvwaddstr(ui.win, ui.height - 22, 2, "                                                                  ");
+	mvwaddstr(ui.win, ui.height - 22, 3, msg);
 	wattroff(ui.win, COLOR_PAIR(3));
 	wrefresh(ui.win);
 }
@@ -210,7 +217,6 @@ print_status(const char *msg)
 static void
 play_movie()
 {
-
 	print_status("Loading movie...");
 
 	struct movie_entry *e = list->items[list->sel];
@@ -236,9 +242,12 @@ main(int argc, char **argv)
 	int quit = 0;
 	init(argc, argv);
 	init_ui(&ui);
+	status_init(ui.win, ui.height - 22);
 	atexit(exit_handler);
 
+	print_status("Loading favorites");
 	list = load_favorites();
+	print_status("UP,DOWN:move RIGHT:select LEFT:exit");
 
 	while (!quit) {
 		draw_list();
@@ -267,15 +276,19 @@ main(int argc, char **argv)
 			case KEY_LEFT:
 				if (ui.scroll == eNames)
 					quit = 1;
-				else if (ui.scroll == eNumbers)
+				else if (ui.scroll == eNumbers) {
 					ui.scroll = eNames;
+					print_status("UP,DOWN:move RIGHT:select LEFT:exit");
+				}
 				break;
 			case 'C':
 			case KEY_RIGHT:
 				if (ui.scroll == eNumbers)
 					play_movie();
-				else if (ui.scroll == eNames)
+				else if (ui.scroll == eNames) {
 					ui.scroll = eNumbers;
+					print_status("UP,DOWN:move RIGHT:play LEFT:back");
+				}
 				break;
 		}
 	}
