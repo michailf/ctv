@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <ncurses.h>
+#include <ncursesw/ncurses.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>

@@ -20,4 +20,4 @@ gen_version_c()
 
 add_executable(ctv main.c api.c version.c api.h)
 add_dependencies(ctv mkversion mkresource)
-target_link_libraries(ctv ncurses ${json_LIBRARY} ${curl_LIBRARY} svc)
+target_link_libraries(ctv ncursesw ${json_LIBRARY} ${curl_LIBRARY} svc)
