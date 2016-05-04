@@ -12,11 +12,16 @@ static const char client_id[] = "a332b9d61df7254dffdc81a260373f25592c94c9";
 static const char client_secret[] = "744a52aff20ec13f53bcfd705fc4b79195265497";
 static const char token_url[] = "https://accounts.etvnet.com/auth/oauth/token";
 static const char api_root[] = "https://secure.etvnet.com/api/v3.0/";
-static const char scope[] =
-	"com.etvnet.media.browse com.etvnet.media.watch "
-	"com.etvnet.media.bookmarks com.etvnet.media.history "
-	"com.etvnet.media.live com.etvnet.media.fivestar com.etvnet.media.comments "
-	"com.etvnet.persons com.etvnet.notifications";
+static const char scope_encoded[] =
+	"com.etvnet.media.browse%20"
+	"com.etvnet.media.watch%20"
+	"com.etvnet.media.bookmarks%20"
+	"com.etvnet.media.history%20"
+	"com.etvnet.media.live%20"
+	"com.etvnet.media.fivestar%20"
+	"com.etvnet.media.comments%20"
+	"com.etvnet.persons%20"
+	"com.etvnet.notifications";
 
 static char *cache_path;
 static char *access_token;
@@ -77,8 +82,7 @@ authorize()
 	json_object *root;
 
 	strcpy(url, token_url);
-	strcat(url, "?");
-	strcat(url, "client_id=");
+	strcat(url, "?client_id=");
 	strcat(url, client_id);
 	strcat(url, "&client_secret=");
 	strcat(url, client_secret);
@@ -86,9 +90,9 @@ authorize()
 	strcat(url, "&refresh_token=");
 	strcat(url, refresh_token);
 	strcat(url, "&scope=");
-	strcat(url, scope);
+	strcat(url, scope_encoded);
 
-	snprintf(fname, PATH_MAX-1, "%s/token.json", cache_path);
+	snprintf(fname, PATH_MAX-1, "%s/.local/etvcc/token.json", getenv("HOME"));
 	rc = fetch(url, fname);
 	if (rc != 0)
 		err(1, "cannot authorize. Error: %d", rc);
@@ -232,7 +236,6 @@ struct movie_list *
 load_favorites()
 {
 	char url[500];
-	json_bool jres;
 	json_object *root, *folders, *folder;
 
 	snprintf(url, 499, "%s/video/bookmarks/folders.json?per_page=20", api_root);
@@ -263,24 +266,21 @@ load_favorites()
 }
 
 void
-api_init(const char *cache_dir)
+api_init()
 {
-	cache_path = strdup(cache_dir);
 	char fname[PATH_MAX];
 
-	snprintf(fname, PATH_MAX-1, "%s/.config/etvcc/access_token.txt", getenv("HOME"));
-	FILE *f = fopen(fname, "rt");
-	access_token = malloc(100);
-	fgets(access_token, 100, f);
-	access_token[strlen(access_token)-1] = 0;
-	fclose(f);
+	asprintf(&cache_path, "%s/.cache/etvcc/", getenv("HOME"));
 
-	snprintf(fname, PATH_MAX-1, "%s/.config/etvcc/refresh_token.txt", getenv("HOME"));
-	f = fopen(fname, "rt");
-	refresh_token = malloc(100);
-	fgets(refresh_token, 100, f);
-	refresh_token[strlen(refresh_token)-1] = 0;
-	fclose(f);
+	snprintf(fname, PATH_MAX-1, "%s/.local/etvcc/token.json", getenv("HOME"));
+	json_object *root = json_object_from_file(fname);
+
+	if (root != NULL) {
+		access_token = strdup(get_str(root, "access_token"));
+		refresh_token = strdup(get_str(root, "refresh_token"));
+	} else {
+		authorize();
+	}
 }
 
 

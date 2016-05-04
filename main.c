@@ -66,7 +66,7 @@ init(int argc, char **argv)
 	mkdir(cache_dir, 0700);
 	strcat(cache_dir, "etvcc/");
 	mkdir(cache_dir, 0700);
-	api_init(cache_dir);
+	api_init();
 }
 
 struct movie_list *list; /* read from my favorites */
@@ -94,6 +94,7 @@ init_ui(struct ui *ui)
 	getmaxyx(stdscr, ui->height, ui->width);
 	init_pair(1, COLOR_RED, COLOR_BLACK);
 	init_pair(2, COLOR_WHITE, COLOR_RED);
+	init_pair(3, COLOR_YELLOW, COLOR_BLUE);
 	refresh();
 	noecho();
 	cbreak();
@@ -179,7 +180,7 @@ prev_number()
 }
 
 static void
-on_exit()
+exit_handler()
 {
 	attron(COLOR_PAIR(2));
 	mvaddstr(10, 10, "CTV exited. Press any key.");
@@ -197,8 +198,20 @@ run_player(const char *url)
 }
 
 static void
+print_status(const char *msg)
+{
+	wattron(ui.win, COLOR_PAIR(3));
+	mvwaddstr(ui.win, 25, 3, msg);
+	wattroff(ui.win, COLOR_PAIR(3));
+	wrefresh(ui.win);
+}
+
+static void
 play_movie()
 {
+
+	print_status("Loading movie...");
+
 	struct movie_entry *e = list->items[list->sel];
 	if (e->children_count == 0) {
 		char *url = get_stream_url(e->id, 400);
@@ -209,9 +222,11 @@ play_movie()
 
 	struct movie_entry *child = get_child(e->id, e->sel);
 	char *url = get_stream_url(child->id, 400);
+	print_status("Playing movie...");
 	run_player(url);
 	free(child);
 	free(url);
+	print_status("                 ");
 }
 
 int
@@ -220,7 +235,7 @@ main(int argc, char **argv)
 	int quit = 0;
 	init(argc, argv);
 	init_ui(&ui);
-	atexit(on_exit);
+	atexit(exit_handler);
 
 	list = load_favorites();
 
