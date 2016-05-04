@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <ncurses.h>
+#include <ncursesw/ncurses.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -110,7 +110,8 @@ struct ui ui;
 static void
 draw_list()
 {
-	for (int i = 0; i < list->count; i++) {
+	int i;
+	for (i = 0; i < list->count; i++) {
 
 		if (i == list->sel && ui.scroll == eNames) {
 			wattron(ui.win, COLOR_PAIR(1));

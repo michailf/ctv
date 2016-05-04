@@ -208,6 +208,7 @@ get_data(json_object *root, const char *name)
 static struct movie_list *
 parse_favorites(json_object *root)
 {
+	int i;
 	struct movie_list *list = calloc(1, sizeof(struct movie_list));
 
 	json_object *bookmarks, *bookmark;
@@ -220,7 +221,7 @@ parse_favorites(json_object *root)
 	bookmarks = get_data(root, "bookmarks");
 	bookmarks_count = json_object_array_length(bookmarks);
 
-	for (int i = 0; i < bookmarks_count; i++) {
+	for (i = 0; i < bookmarks_count; i++) {
 		bookmark = json_object_array_get_idx(bookmarks, i);
 		if (bookmark == NULL)
 			err(1, "Cannot get bookmark[%d]", i);
@@ -237,6 +238,7 @@ load_favorites()
 {
 	char url[500];
 	json_object *root, *folders, *folder;
+	int i;
 
 	snprintf(url, 499, "%s/video/bookmarks/folders.json?per_page=20", api_root);
 
@@ -245,7 +247,7 @@ load_favorites()
 	int folders_count = json_object_array_length(folders);
 	int folder_id = 0;
 
-	for (int i = 0; i < folders_count; i++) {
+	for (i = 0; i < folders_count; i++) {
 		folder = json_object_array_get_idx(folders, i);
 		if (folder == NULL)
 			err(1, "Cannot get folder[%d]", i);
