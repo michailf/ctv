@@ -192,19 +192,6 @@ exit_handler()
 }
 
 static void
-run_player(const char *url)
-{
-	char cmd[2000];
-
-	if (strcmp("/home/pi", getenv("HOME")) == 0)
-		snprintf(cmd, 1999, "omxplayer --blank --key-config /home/pi/bin/omxp_keys.txt '%s'", url);
-	else
-		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s'", url);
-
-	system(cmd);
-}
-
-static void
 print_status(const char *msg)
 {
 	wattron(ui.win, COLOR_PAIR(3));
@@ -212,6 +199,23 @@ print_status(const char *msg)
 	mvwaddstr(ui.win, ui.height - 22, 3, msg);
 	wattroff(ui.win, COLOR_PAIR(3));
 	wrefresh(ui.win);
+}
+
+static void
+run_player(const char *url)
+{
+	char cmd[2000];
+	char msg[100];
+
+	if (strcmp("/home/pi", getenv("HOME")) == 0)
+		snprintf(cmd, 1999, "omxplayer --blank --key-config /home/pi/bin/omxp_keys.txt '%s'", url);
+	else
+		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
+
+	int rc = system(cmd);
+	snprintf(msg, 99, "player exited: %d", rc);
+	print_status(msg);
+
 }
 
 static void
@@ -240,7 +244,6 @@ play_movie()
 	run_player(url);
 	free(child);
 	free(url);
-	print_status("                 ");
 }
 
 static int

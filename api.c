@@ -359,8 +359,11 @@ get_stream_url(int object_id, int bitrate)
 		return NULL;
 
 	int status = get_int(root, "status_code");
-	if (status != 200)
+	if (status != 200) {
+		sprintf(last_error, "get stream status: %d", status);
+		api_errno = 1;
 		return NULL;
+	}
 
 	jres = json_object_object_get_ex(root, "data", &obj);
 	if (jres == FALSE) {
