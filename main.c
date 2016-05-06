@@ -213,7 +213,7 @@ run_player(const char *url)
 		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
 
 	int rc = system(cmd);
-	snprintf(msg, 99, "player exited: %d", rc);
+	snprintf(msg, 99, "video stopped: %d", rc);
 	print_status(msg);
 
 }
