@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <curses.h>
 
 #define SYSFS_GPIO_DIR "/sys/class/gpio"
 #define MAX_BUF 64
@@ -140,9 +141,10 @@ gpio_get_value(int gpio, int *value)
 #define MAX_PINS 4
 
 static int pins[MAX_PINS] = { 17, 18, 27, 22  };
-static int fds[MAX_PINS] = { -1, -1, -1, -1 };
+static int fds[5] = { -1, -1, -1, -1, 0 };
 
-void joistick_init()
+void
+joistick_init()
 {
 	int i, rc;
 
@@ -171,39 +173,46 @@ void joistick_init()
 }
 
 int
-wait_event(int bits)
+joistick_getch()
 {
-	struct pollfd fdset[4];
+	struct pollfd fdset[5]; //  4 joystick buttons and stdin
+	const fdn = 5;
 	int timeout_ms = 300000;
 	int i;
 
 	memset((void*)fdset, 0, sizeof(fdset));
 
-	for (i = 0; i < SIZE; i++) {
+	for (i = 0; i < fdn; i++) {
 		fdset[i].fd = fds[i];
 		fdset[i].events = POLLPRI | POLLERR;
 	}
 
-	int rc = poll(fdset, SIZE, timeout_ms);
-
-	printf("poll: rc: %d\n", rc);
+	int rc = poll(fdset, fdn, timeout_ms);
 
 	if (rc < 0) {
 		err(1, "poll() failed: %d, %s", rc, strerror(rc));
 		return -1;
 	}
 
-	for (i = 0; i < SIZE && rc > 0; i++) {	
+	for (i = 0; i < fdn && rc > 0; i++) {	
 		if (fdset[i].revents == 0)
 			continue;
-		printf("%d. revents: 0x%02X\n", i, fdset[i].revents);
-		printf("    POLLPRI: 0x%02X\n", fdset[i].revents & POLLPRI);
-		printf("    POLLERR: 0x%02X\n", fdset[i].revents & POLLERR);
+
 		char buf[64];
 		lseek(fds[i], 0, SEEK_SET);
-		int len = read(fds[i], buf, 64);
-		printf("    len: %d, %02X,%02X\n\n", len, buf[0], buf[1]);
+		read(fds[i], buf, 64);
 		rc--;
+		
+		if (i == 0)
+			return KEY_UP;
+		if (i == 1)
+			return KEY_DOWN;
+		if (i == 2)
+			return KEY_LEFT;
+		if (i == 3)
+			return KEY_RIGHT;
+		if (i == 4)
+			return getch();
 	}
 
 	return 0;

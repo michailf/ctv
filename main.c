@@ -15,6 +15,10 @@
 #include "api.h"
 #include "util.h"
 
+#ifdef RASPBERRY
+#include "joystick.h"
+#endif
+
 static void
 synopsis()
 {
@@ -253,19 +257,13 @@ play_movie()
 }
 
 static int
-wait_event()
+portable_getch()
 {
-	struct timeval tv = { 100L, 0L };
-	fd_set fds;
-	FD_ZERO(&fds);
-	FD_SET(0, &fds);
-	return select(1, &fds, NULL, NULL, &tv);
-}
-
-static int
-read_joystick()
-{
-	return -1;
+#ifdef RASPBERRY
+	return joystick_getch();
+#else
+	return getch();
+#endif
 }
 
 static void
@@ -319,16 +317,7 @@ main(int argc, char **argv)
 		draw_list();
 		wrefresh(ui.win);
 
-		int has_events = wait_event();
-		if (has_events == 0)
-			continue;
-
-		int ch = -1;
-
-		if (has_events == 1)
-			ch = getch();
-		else if (has_events == 2)
-			ch = read_joystick();
+		int ch = portable_getch();
 
 		switch (ch) {
 			case 'q': case 'Q':

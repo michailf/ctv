@@ -31,15 +31,8 @@ RPI B pins (from "gpio readall"):
 /*
  * init BCM pins 17, 18, 27, 22.
 */
+
+#include <stdint.h>
+
 void joistick_init();
-
-enum input_events
-{
-	KEYBOARD_HIT      = 1,
-	JOYSTICK_UP       = 2,
-	JOYSTICK_DOWN     = 4,
-	JOYSTICK_LEFT     = 8,
-	JOYSTICK_RIGHT    = 0x10,
-};
-
-void wait_event();
+int joistick_getch();

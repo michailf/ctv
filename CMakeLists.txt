@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.0)
 project(ctv C)
 
-#set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-#set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+execute_process(COMMAND uname -a OUTPUT_VARIABLE UNAME)
 
-include(CheckIncludeFile)
-CHECK_INCLUDE_FILE(/opt/vc/include/bcm_host.h BCMHOST)
-
-if(BCMHOST)
+if("${UNAME}" MATCHES "Darwin")
+	message("Darwin. Using keyboard controls.")
+elseif("${UNAME}" MATCHES "Linux raspberrypi")
+	set(RASPBERRY ON)
+	message("Raspberry PI detected. Enable joystick code.")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DRASPBERRY")
 endif()
 
@@ -27,7 +27,7 @@ gen_version_c()
 
 list(APPEND SOURCES main.c api.c api.h version.c version.h util.c util.h)
 list(APPEND LIBS  ${ncurses_LIBRARY} ${json_LIBRARY} ${curl_LIBRARY} svc)
-if(BCMHOST)
+if(RASPBERRY)
 	list(APPEND SOURCES joystick.c)
 endif()
 
