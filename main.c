@@ -28,8 +28,9 @@ usage()
 	printf("Serge Voilokov, 2016.\n");
 	synopsis();
 	printf("options:\n"
-	       "  -d,--debug           dump debug output to stderr\n"
-	       "  -v,--version         print version\n"
+	       "  -a    activate tv box on etvnet.com\n"
+	       "  -d    dump debug output to stderr\n"
+	       "  -v    print version\n"
 	       );
 }
 
@@ -42,6 +43,8 @@ version()
 	printf("date %s\n", app_date);
 }
 
+static bool activate_box = false;
+
 static void
 init(int argc, char **argv)
 {
@@ -50,16 +53,19 @@ init(int argc, char **argv)
 
 	while (optind < argc) {
 
-		ch = getopt(argc, argv, "hv");
-		if (ch != -1) {
-			switch (ch) {
-				case 'h':
-					usage();
-					exit(1);
-				case 'v':
-					version();
-					exit(1);
-			}
+		ch = getopt(argc, argv, "ahv");
+		if (ch == -1)
+			continue;
+		switch (ch) {
+			case 'a':
+				activate_box = true;
+				break;
+			case 'h':
+				usage();
+				exit(1);
+			case 'v':
+				version();
+				exit(1);
 		}
 	}
 
@@ -208,7 +214,7 @@ run_player(const char *url)
 	char msg[100];
 
 	if (strcmp("/home/pi", getenv("HOME")) == 0)
-		snprintf(cmd, 1999, "omxplayer --blank --key-config /home/pi/bin/omxp_keys.txt '%s'", url);
+		snprintf(cmd, 1999, "omxplayer --live --blank --key-config /home/pi/bin/omxp_keys.txt '%s'", url);
 	else
 		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
 
@@ -225,21 +231,21 @@ play_movie()
 
 	struct movie_entry *e = list->items[list->sel];
 	if (e->children_count == 0) {
-		char *url = get_stream_url(e->id, 400);
-		if (api_errno != 0)
-			statusf("play_movie: %s", api_error());
+		char *url = etvnet_get_stream_url(e->id, 400);
+		if (etvnet_errno != 0)
+			statusf("play_movie: %s", etvnet_error());
 		run_player(url);
 		free(url);
 		return;
 	}
 
-	struct movie_entry *child = get_child(e->id, e->sel);
-	if (api_errno != 0)
-		statusf("part %d: %s", e->sel, api_error());
+	struct movie_entry *child = etvnet_get_movie(e->id, e->sel);
+	if (etvnet_errno != 0)
+		statusf("part %d: %s", e->sel, etvnet_error());
 
-	char *url = get_stream_url(child->id, 400);
-	if (api_errno != 0)
-		statusf("play_movie[%d]: %s", e->sel, api_error());
+	char *url = etvnet_get_stream_url(child->id, 400);
+	if (etvnet_errno != 0)
+		statusf("play_movie[%d]: %s", e->sel, etvnet_error());
 	print_status("Playing movie...");
 	run_player(url);
 	free(child);
@@ -262,25 +268,50 @@ read_joystick()
 	return -1;
 }
 
+static void
+activate_tv_box()
+{
+	char *code = etvnet_get_activation_code();
+	if (code == NULL)
+		statusf(etvnet_error());
+
+	printf("Enter activation code on etvnet.com/Активация STB:\n\n    %s\n", code);
+	printf("After entering the code hit ENTER on this box.\n");
+	getch();
+
+	etvnet_authorize(code);
+	if (etvnet_errno != 0)
+		err(1, "cannot active box: %s", etvnet_error());
+
+	printf("Activated successfully.\n");
+	exit(0);
+}
+
 int
 main(int argc, char **argv)
 {
 	int quit = 0;
 	init(argc, argv);
+
+	if (activate_box) {
+		activate_tv_box();
+		return 0;
+	}
+
 	init_ui(&ui);
 	status_init(ui.win, ui.height - 22);
 	atexit(exit_handler);
 	timeout(0);
 
 	print_status("Connecting to etvnet.com");
-	api_init();
-	if (api_errno != 0)
-		statusf("%s", api_error());
+	etvnet_init();
+	if (etvnet_errno != 0)
+		statusf("%s", etvnet_error());
 
 	print_status("Loading favorites");
-	list = load_favorites();
-	if (api_errno != 0)
-		statusf("%s", api_error());
+	list = etvnet_load_favorites();
+	if (etvnet_errno != 0)
+		statusf("%s", etvnet_error());
 
 	print_status("UP,DOWN:move RIGHT:select LEFT:exit");
 

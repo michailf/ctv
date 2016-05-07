@@ -1,3 +1,22 @@
+/*
+ * etvnet.com minimal API client for console TV box.
+ * Serge Voilokov, 2016
+ *
+ * Methods:
+ *   - activate
+ *   - authorize
+ *   - load my favorites
+ *   - list movie in my favorites folder
+ *   - load stream url for a movie
+ */
+
+void etvnet_init();
+const char *etvnet_error();
+extern int etvnet_errno;
+
+char *etvnet_get_activation_code();
+void etvnet_authorize(const char *activation_code);
+
 struct movie_entry {
 	int id;
 	char *name;
@@ -13,10 +32,6 @@ struct movie_list {
 	struct movie_entry **items;
 };
 
-void api_init();
-const char *api_error();
-extern int api_errno;
-
-struct movie_list *load_favorites();
-char *get_stream_url(int object_id, int bitrate);
-struct movie_entry *get_child(int container_id, int idx);
+struct movie_list *etvnet_load_favorites();
+char *etvnet_get_stream_url(int object_id, int bitrate);
+struct movie_entry *etvnet_get_movie(int container_id, int idx);
