@@ -34,5 +34,5 @@ RPI B pins (from "gpio readall"):
 
 #include <stdint.h>
 
-void joistick_init();
-int joistick_getch();
+void joystick_init();
+int joystick_getch();
