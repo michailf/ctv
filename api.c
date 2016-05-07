@@ -453,6 +453,24 @@ etvnet_get_activation_code()
 	int rc;
 	json_object *root;
 
+	/* create .cache dir */
+
+	snprintf(fname, PATH_MAX-1, "%s/.cache", getenv("HOME"));
+	if (!exists(fname)) {
+		rc = mkdir(fname, 0700);
+		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
+		etvnet_errno = 1;
+		return NULL;
+	}
+
+	snprintf(fname, PATH_MAX-1, "%s/.cache/etvcc", getenv("HOME"));
+	if (!exists(fname)) {
+		rc = mkdir(fname, 0700);
+		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
+		etvnet_errno = 1;
+		return NULL;
+	}
+
 	strcpy(url, code_url);
 	strcat(url, "?client_id=");
 	strcat(url, client_id);
@@ -461,7 +479,7 @@ etvnet_get_activation_code()
 	strcat(url, "&scope=");
 	strcat(url, scope_encoded);
 
-	snprintf(fname, PATH_MAX-1, "%sactivation.json", cache_path);
+	snprintf(fname, PATH_MAX-1, "%s/.cache/etvcc/activation.json", getenv("HOME"));
 	rc = fetch(url, fname);
 	if (rc != 0) {
 		sprintf(last_error, "cannot get activation code. Error: %d", rc);

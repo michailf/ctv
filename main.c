@@ -273,7 +273,7 @@ activate_tv_box()
 {
 	char *code = etvnet_get_activation_code();
 	if (code == NULL)
-		statusf(etvnet_error());
+		err(1, "cannot get activation code: %s", etvnet_error());
 
 	printf("Enter activation code on etvnet.com/Активация STB:\n\n    %s\n", code);
 	printf("After entering the code hit ENTER on this box.\n");
