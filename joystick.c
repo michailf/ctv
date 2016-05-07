@@ -144,7 +144,7 @@ static int pins[MAX_PINS] = { 17, 18, 27, 22  };
 static int fds[5] = { -1, -1, -1, -1, 0 };
 
 void
-joistick_init()
+joystick_init()
 {
 	int i, rc;
 
@@ -168,7 +168,7 @@ joistick_init()
 }
 
 int
-joistick_getch()
+joystick_getch()
 {
 	struct pollfd fdset[5]; //  4 joystick buttons and stdin
 	const fdn = 5;
