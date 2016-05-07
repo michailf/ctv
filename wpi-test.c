@@ -122,7 +122,7 @@ wait_event(int *fds)
 
 int main()
 {
-	int i;
+	int i, rc;
 	int pins[SIZE] = { 17, 18, 27, 22  };
 	int fds[SIZE] = { 0, 0, 0, 0 };
 	
@@ -134,22 +134,22 @@ int main()
 	printf("export  ", pins[i]);
 
 	for (i = 0; i < SIZE; i++) {
-		int rc = gpio_export(pins[i]);
+		rc = gpio_export(pins[i]);
 		printf(" %2d", rc);
 	}
 	printf("\n");
 
 	printf("edge    ");
 	for (i = 0; i < SIZE; i++) {
-		fds[i] = gpio_set_edge(pins[i], "rising");
-		printf(" %2d", fds[i]);
+		rc = gpio_set_edge(pins[i], "rising");
+		printf(" %2d", rc);
 	}
 	printf("\n");
 	
 	printf("low     ");
 	for (i = 0; i < SIZE; i++) {
-		fds[i] = gpio_set_active_low(pins[i], 0);
-		printf(" %2d", fds[i]);
+		rc = gpio_set_active_low(pins[i], 0);
+		printf(" %2d", rc);
 	}
 	printf("\n");
 

@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <curses.h>
+#include <ncursesw/curses.h>
 
 #define SYSFS_GPIO_DIR "/sys/class/gpio"
 #define MAX_BUF 64
@@ -165,11 +165,6 @@ joistick_init()
 		if (fds[i] == -1)
 			err(1, "cannot open pin %d", pins[i]);
 	}
-	
-	while (1) {
-		wait_event(fds);
-		usleep(50000);
-	}
 }
 
 int
@@ -217,3 +212,4 @@ joistick_getch()
 
 	return 0;
 }
+
