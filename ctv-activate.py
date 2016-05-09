@@ -20,7 +20,7 @@ def get_code():
     }
 
     udata = urllib.urlencode(data)
-    req = urllib2.Request(code_url)
+    req = urllib2.Request(etvapi.code_url)
     resp = urllib2.urlopen(req, udata).read()
 
     a = json.loads(resp)
@@ -50,8 +50,10 @@ def get_token(device_code):
     }
 
     udata = urllib.urlencode(data)
-    req = urllib2.Request(token_url)
+    req = urllib2.Request(etvapi.token_url)
     resp = urllib2.urlopen(req, udata).read()
+    print 'token_url:', etvapi.token_url
+    print 'udata:', udata
     a = json.loads(resp)
     error = a.get('error')
     if error:
