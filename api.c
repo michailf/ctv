@@ -87,12 +87,11 @@ get_int(json_object *obj, const char *name)
 }
 
 void
-etvnet_authorize(const char *activation_code)
+etvnet_authorize(const char *device_code)
 {
 	char url[1000];
 	char fname[PATH_MAX];
 	int rc;
-	json_object *root;
 
 	/* create .local dir */
 
@@ -122,10 +121,10 @@ etvnet_authorize(const char *activation_code)
 	strcat(url, "&scope=");
 	strcat(url, scope_encoded);
 
-	if (activation_code != NULL) {
-		strcat(url, "&grant_type=http://oauth.net/grant_type/device/1.0");
+	if (device_code != NULL) {
+		strcat(url, "&grant_type=http%3A%2F%2Foauth.net%2Fgrant_type%2Fdevice%2F1.0");
 		strcat(url, "&code=");
-		strcat(url, activation_code);
+		strcat(url, device_code);
 
 	} else {
 		strcat(url, "&grant_type=refresh_token");
@@ -134,31 +133,14 @@ etvnet_authorize(const char *activation_code)
 	}
 
 	snprintf(fname, PATH_MAX-1, "%s/.local/etvcc/token.json", getenv("HOME"));
-
 	rc = fetch(url, fname);
+
 	if (rc != 0) {
-		sprintf(last_error, "cannot authorize. Error: %d", rc);
 		etvnet_errno = 1;
 		return;
 	}
 
-	/* parse json */
-
-	root = json_object_from_file(fname);
-	if (root == NULL) {
-		sprintf(last_error, "cannot load %s", fname);
-		etvnet_errno = 1;
-		return;
-	}
-
-	if (access_token != NULL)
-		free(access_token);
-
-	if (refresh_token != NULL)
-		free(refresh_token);
-
-	access_token = strdup(get_str(root, "access_token"));
-	refresh_token = strdup(get_str(root, "refresh_token"));
+	etvnet_init();
 }
 
 static json_object *
@@ -357,21 +339,54 @@ void
 etvnet_init()
 {
 	char fname[PATH_MAX];
+	const char *v;
 
 	asprintf(&cache_path, "%s/.cache/etvcc/", getenv("HOME"));
-
 	snprintf(fname, PATH_MAX-1, "%s/.local/etvcc/token.json", getenv("HOME"));
 
-	if (exists(fname)) {
-		json_object *root = json_object_from_file(fname);
-		access_token = strdup(get_str(root, "access_token"));
-		refresh_token = strdup(get_str(root, "refresh_token"));
-	} else {
-		sprintf(last_error, "Player is not activated on etvnet.com.");
-		etvnet_errno = 1;
+	if (!exists(fname)) {
+		sprintf(last_error, "no token file");
+		goto not_activated;
 	}
-}
 
+	json_object *root = json_object_from_file(fname);
+	if (root == NULL) {
+		sprintf(last_error, "bad token json");
+		goto not_activated;
+	}
+
+
+	v = get_str(root, "error");
+	if (v != NULL) {
+		sprintf(last_error, "token error: %s", v);
+		goto not_activated;
+	}
+
+	v = get_str(root, "access_token");
+	if (v == NULL) {
+		sprintf(last_error, "bad access token");
+		goto not_activated;
+
+	}
+
+	access_token = strdup(v);
+
+	v = get_str(root, "refresh_token");
+	if (v == NULL) {
+		sprintf(last_error, "bad refresh token");
+		goto not_activated;
+
+	}
+
+	refresh_token = strdup(v);
+
+	last_error[0] = 0;
+	etvnet_errno = 0;
+	return;
+
+not_activated:
+	etvnet_errno = 1;
+}
 
 char *
 etvnet_get_stream_url(int object_id, int bitrate)
@@ -445,13 +460,14 @@ etvnet_get_movie(int container_id, int idx)
 	return e;
 }
 
-char *
-etvnet_get_activation_code()
+void
+etvnet_get_activation_code(char **user_code, char **device_code)
 {
 	char url[1000];
 	char fname[PATH_MAX];
 	int rc;
 	json_object *root;
+	const char *v;
 
 	/* create .cache dir */
 
@@ -460,7 +476,7 @@ etvnet_get_activation_code()
 		rc = mkdir(fname, 0700);
 		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
 		etvnet_errno = 1;
-		return NULL;
+		return;
 	}
 
 	snprintf(fname, PATH_MAX-1, "%s/.cache/etvcc", getenv("HOME"));
@@ -468,7 +484,7 @@ etvnet_get_activation_code()
 		rc = mkdir(fname, 0700);
 		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
 		etvnet_errno = 1;
-		return NULL;
+		return;
 	}
 
 	strcpy(url, code_url);
@@ -484,22 +500,32 @@ etvnet_get_activation_code()
 	if (rc != 0) {
 		sprintf(last_error, "cannot get activation code. Error: %d", rc);
 		etvnet_errno = 1;
-		return NULL;
+		return;
 	}
 
 	root = json_object_from_file(fname);
 	if (root == NULL) {
 		sprintf(last_error, "cannot load %s", fname);
 		etvnet_errno = 1;
-		return NULL;
+		return;
 	}
 
-	const char *user_code = get_str(root, "user_code");
-	if (user_code == NULL ) {
+	v = get_str(root, "device_code");
+	if (v == NULL ) {
+		sprintf(last_error, "no activation.device_code.");
+		etvnet_errno = 1;
+		return;
+	}
+
+	*device_code = strdup(v);
+
+	v = get_str(root, "user_code");
+	if (v == NULL ) {
 		sprintf(last_error, "no activation.user_code.");
 		etvnet_errno = 1;
-		return NULL;
+		return;
 	}
 
-	return strdup(user_code);
+	etvnet_errno = 0;
+	*user_code = strdup(v);
 }

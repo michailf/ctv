@@ -14,7 +14,7 @@ void etvnet_init();
 const char *etvnet_error();
 extern int etvnet_errno;
 
-char *etvnet_get_activation_code();
+void etvnet_get_activation_code(char **user_code, char **device_code);
 void etvnet_authorize(const char *activation_code);
 
 struct movie_entry {

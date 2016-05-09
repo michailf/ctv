@@ -269,17 +269,25 @@ portable_getch()
 static void
 activate_tv_box()
 {
-	char *code = etvnet_get_activation_code();
-	if (code == NULL)
+	char *user_code;
+	char *device_code;
+
+	etvnet_get_activation_code(&user_code, &device_code);
+	if (etvnet_errno != 0)
 		err(1, "cannot get activation code: %s", etvnet_error());
 
-	printf("Enter activation code on etvnet.com/Активация STB:\n\n    %s\n", code);
+	printf("Enter activation code on etvnet.com/Активация STB:\n    %s\n", user_code);
 	printf("After entering the code hit ENTER on this box.\n");
-	getch();
+	timeout(20);
+	int rc = fgetc(stdin);
+	if (rc != 10) {
+		printf("Activation canceled.\n");
+		exit(1);
+	}
 
-	etvnet_authorize(code);
+	etvnet_authorize(device_code);
 	if (etvnet_errno != 0)
-		err(1, "cannot active box: %s", etvnet_error());
+		err(1, "%s", etvnet_error());
 
 	printf("Activated successfully.\n");
 	exit(0);
