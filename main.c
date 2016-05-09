@@ -242,7 +242,7 @@ play_movie()
 
 	struct movie_entry *e = list->items[list->sel];
 	if (e->children_count == 0) {
-		char *url = etvnet_get_stream_url(e->id, 400);
+		char *url = etvnet_get_stream_url(e->id, e->format, e->bitrate);
 		if (etvnet_errno != 0)
 			statusf("play_movie: %s", etvnet_error());
 		run_player(url);
@@ -254,7 +254,7 @@ play_movie()
 	if (etvnet_errno != 0)
 		statusf("part %d: %s", e->sel, etvnet_error());
 
-	char *url = etvnet_get_stream_url(child->id, 400);
+	char *url = etvnet_get_stream_url(child->id, e->format, e->bitrate);
 	if (etvnet_errno != 0)
 		statusf("play_movie[%d]: %s", e->sel, etvnet_error());
 	print_status("Playing movie...");
