@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <locale.h>
 #include "common/struct.h"
+#include "common/log.h"
 #include "version.h"
 #include "api.h"
 #include "util.h"
@@ -51,6 +52,7 @@ version()
 static bool activate_box = false;
 static char cache_dir[PATH_MAX];
 static char local_dir[PATH_MAX];
+static int idle_minutes = 0;
 
 static void
 init(int argc, char **argv)
@@ -109,6 +111,7 @@ init_ui(struct ui *ui)
 	initscr();
 	start_color();
 	getmaxyx(stdscr, ui->height, ui->width);
+	logi("height: %d, width: %d", ui->height, ui->width);
 	init_pair(1, COLOR_RED, COLOR_BLACK);
 	init_pair(2, COLOR_WHITE, COLOR_RED);
 	init_pair(3, COLOR_YELLOW, COLOR_BLUE);
@@ -200,17 +203,19 @@ prev_number()
 static void
 exit_handler()
 {
+	logi("exit_handler. wait for any key");
 	timeout(-1);
-//	attron(COLOR_PAIR(2));
-//	mvaddstr(10, 10, "CTV exited. Press any key.");
 	getch();
 	flushinp();
 	endwin();
+	logi("stopped");
+	system("tail -100 ctv.log");
 }
 
 static void
 print_status(const char *msg)
 {
+	logi(msg);
 	wattron(ui.win, COLOR_PAIR(3));
 	mvwaddstr(ui.win, ui.height - 22, 2, "                                                                  ");
 	mvwaddstr(ui.win, ui.height - 22, 3, msg);
@@ -229,8 +234,9 @@ run_player(const char *url)
 	else
 		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
 
+	logi("starting player: %s", cmd);
 	int rc = system(cmd);
-	snprintf(msg, 99, "video stopped: %d", rc);
+	snprintf(msg, 99, "player stopped: %d", rc);
 	print_status(msg);
 
 }
@@ -359,6 +365,45 @@ load_selections()
 	}
 
 	fclose(f);
+	logi("selections loaded");
+}
+
+static void
+turnoff_monitor()
+{
+	const char *cmd = "/opt/vc/bin/tvservice -o";
+	logi("turning off monitor");
+	int rc = system(cmd);
+	if (rc != 0)
+		logwarn("error: %d. You may need to set chmod u+s /opt/vc/bin/tvservice", rc);
+}
+
+static void
+turnon_monitor()
+{
+	const char *cmd = "/opt/vc/bin/tvservice -p";
+	logi("turning on monitor");
+	int rc = system(cmd);
+	if (rc != 0)
+		logwarn("error: %d. You may need to set chmod u+s /opt/vc/bin/tvservice", rc);
+}
+
+static void
+on_idle()
+{
+	int ch = -1;
+
+	idle_minutes++;
+	if (idle_minutes < 5)
+		return;
+
+	turnoff_monitor();
+	while (ch == -1) {
+		logi("wait for any key");
+		ch = portable_getch();
+	}
+	turnon_monitor();
+	sleep(5);
 }
 
 int
@@ -372,6 +417,8 @@ main(int argc, char **argv)
 		return 0;
 	}
 
+	log_open("ctv.log");
+	logi("=======================================");
 	init_ui(&ui);
 	status_init(ui.win, ui.height - 22);
 	atexit(exit_handler);
@@ -399,9 +446,13 @@ main(int argc, char **argv)
 		int ch = portable_getch();
 
 		switch (ch) {
+			case -1:
+				on_idle();
+				break;
 			case 'q': case 'Q':
 				quit = 1;
 				break;
+			case 'w':
 			case 'A':
 			case KEY_UP:
 				if (ui.scroll == eNumbers)
@@ -409,6 +460,7 @@ main(int argc, char **argv)
 				else
 					prev_number();
 				break;
+			case 's':
 			case 'B':
 			case KEY_DOWN:
 				if (ui.scroll == eNumbers)
@@ -416,6 +468,7 @@ main(int argc, char **argv)
 				else
 					next_number();
 				break;
+			case 'a':
 			case 'D':
 			case KEY_LEFT:
 				if (ui.scroll == eNames)
@@ -425,6 +478,7 @@ main(int argc, char **argv)
 					print_status("UP,DOWN:move RIGHT:select LEFT:exit");
 				}
 				break;
+			case 'd':
 			case 'C':
 			case KEY_RIGHT:
 				if (ui.scroll == eNumbers)
@@ -437,38 +491,3 @@ main(int argc, char **argv)
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

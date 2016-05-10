@@ -16,9 +16,10 @@ status_init(WINDOW *w, int row)
 void
 statusf(const char *fmt, ...)
 {
-	va_list args;
+	va_list args, cp;
 
 	va_start(args, fmt);
+	va_copy(cp, args);
 
 	wattron(log_win, COLOR_PAIR(2));
 	mvwaddstr(log_win, log_row, 2, "                                                                  ");
@@ -28,5 +29,13 @@ statusf(const char *fmt, ...)
 	wrefresh(log_win);
 
 	va_end (args);
-	exit(1);
+
+	va_start(args, fmt);
+	va_copy(cp, args);
+
+	char msg[1000];
+	vsnprintf(msg, 999, fmt, args);
+	logfatal("%s", msg);
+
+	va_end (args);
 }

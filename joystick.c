@@ -177,7 +177,7 @@ joystick_getch()
 {
 	struct pollfd fdset[5]; //  4 joystick buttons and stdin
 	const fdn = 5;
-	int timeout_ms = 300000;
+	int timeout_ms = 60000;
 	int i;
 
 	memset((void*)fdset, 0, sizeof(fdset));
@@ -199,8 +199,8 @@ joystick_getch()
 			continue;
 
 		char buf[64];
-		lseek(fds[i], 0, SEEK_SET);
-		read(fds[i], buf, 64);
+		lseek(fdset[i].fd, 0, SEEK_SET);
+		read(fdset[i].fd, buf, 64);
 		rc--;
 		
 		if (i == 0)
@@ -215,5 +215,5 @@ joystick_getch()
 			return getch();
 	}
 
-	return 0;
+	return -1;
 }
