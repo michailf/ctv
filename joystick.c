@@ -5,7 +5,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <curses.h>
+#include <err.h>
+#include <ncursesw/ncurses.h>
 
 #define SYSFS_GPIO_DIR "/sys/class/gpio"
 #define MAX_BUF 64
@@ -165,18 +166,13 @@ joystick_init()
 		if (fds[i] == -1)
 			err(1, "cannot open pin %d", pins[i]);
 	}
-	
-	while (1) {
-		wait_event(fds);
-		usleep(50000);
-	}
 }
 
 int
 joystick_getch()
 {
 	struct pollfd fdset[5]; //  4 joystick buttons and stdin
-	const fdn = 5;
+	const int fdn = 5;
 	int timeout_ms = 60000;
 	int i;
 
@@ -184,15 +180,19 @@ joystick_getch()
 
 	for (i = 0; i < fdn; i++) {
 		fdset[i].fd = fds[i];
-		fdset[i].events = POLLPRI | POLLERR;
+		fdset[i].events = POLLIN;
+		fprintf(stderr, "fdset[%d] = %d\n", i, fdset[i].fd);
 	}
 
 	int rc = poll(fdset, fdn, timeout_ms);
+	fprintf(stderr, "poll: %d\n", rc);
 
 	if (rc < 0) {
 		err(1, "poll() failed: %d, %s", rc, strerror(rc));
 		return -1;
 	}
+	
+	int ch = -1;
 
 	for (i = 0; i < fdn && rc > 0; i++) {	
 		if (fdset[i].revents == 0)
@@ -204,16 +204,18 @@ joystick_getch()
 		rc--;
 		
 		if (i == 0)
-			return KEY_UP;
+			ch = KEY_UP;
 		if (i == 1)
-			return KEY_DOWN;
+			ch = KEY_DOWN;
 		if (i == 2)
-			return KEY_LEFT;
+			ch = KEY_LEFT;
 		if (i == 3)
-			return KEY_RIGHT;
+			ch = KEY_RIGHT;
 		if (i == 4)
-			return getch();
+			ch = buf[0];
+
+		fprintf(stderr, "for: %d, ch: %d\n", i, ch);
 	}
 
-	return -1;
+	return ch;
 }
