@@ -1,4 +1,5 @@
 #include <json-c/json.h>
+#include <limits.h>
 #include <err.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -48,12 +49,13 @@ version()
 }
 
 static bool activate_box = false;
+static char cache_dir[PATH_MAX];
+static char local_dir[PATH_MAX];
 
 static void
 init(int argc, char **argv)
 {
 	int ch;
-	char cache_dir[500];
 
 	while (optind < argc) {
 
@@ -73,10 +75,15 @@ init(int argc, char **argv)
 		}
 	}
 
-	snprintf(cache_dir, 500, "%s/.cache/", getenv("HOME"));
+	snprintf(cache_dir, PATH_MAX-1, "%s/.cache/", getenv("HOME"));
 	mkdir(cache_dir, 0700);
 	strcat(cache_dir, "etvcc/");
 	mkdir(cache_dir, 0700);
+
+	snprintf(local_dir, PATH_MAX-1, "%s/.local/", getenv("HOME"));
+	mkdir(local_dir, 0700);
+	strcat(local_dir, "etvcc/");
+	mkdir(local_dir, 0700);
 }
 
 struct movie_list *list; /* read from my favorites */
@@ -235,7 +242,7 @@ play_movie()
 
 	struct movie_entry *e = list->items[list->sel];
 	if (e->children_count == 0) {
-		char *url = etvnet_get_stream_url(e->id, 400);
+		char *url = etvnet_get_stream_url(e->id, e->format, e->bitrate);
 		if (etvnet_errno != 0)
 			statusf("play_movie: %s", etvnet_error());
 		run_player(url);
@@ -247,7 +254,7 @@ play_movie()
 	if (etvnet_errno != 0)
 		statusf("part %d: %s", e->sel, etvnet_error());
 
-	char *url = etvnet_get_stream_url(child->id, 400);
+	char *url = etvnet_get_stream_url(child->id, e->format, e->bitrate);
 	if (etvnet_errno != 0)
 		statusf("play_movie[%d]: %s", e->sel, etvnet_error());
 	print_status("Playing movie...");
@@ -293,6 +300,67 @@ activate_tv_box()
 	exit(0);
 }
 
+static void
+save_selections()
+{
+	int i;
+	char fname[PATH_MAX];
+	FILE *f;
+	struct movie_entry *e;
+
+	snprintf(fname, PATH_MAX-1, "%sselections.txt", local_dir);
+	f = fopen(fname, "wt");
+	if (f == NULL)
+		statusf("cannot save selections");
+
+	fprintf(f, "list.sel = %d\n", list->sel);
+	for (i = 0; i < list->count; i++) {
+		e = list->items[i];
+		fprintf(f, "movie.%d.sel = %d\n", e->id, e->sel);
+	}
+
+	fclose(f);
+}
+
+static void
+load_selections()
+{
+	int i, n, v, id, j;
+	char fname[PATH_MAX];
+	FILE *f;
+	struct movie_entry *e;
+
+	snprintf(fname, PATH_MAX-1, "%sselections.txt", local_dir);
+	f = fopen(fname, "rt");
+	if (f == NULL)
+		return;
+
+	n = fscanf(f, "list.sel = %d\n", &v);
+	if (n != 1) {
+		fclose(f);
+		return;
+	}
+
+	if (v >= 0 && v < list->count)
+		list->sel = v;
+
+	for (i = 0; i < list->count; i++) {
+		n = fscanf(f, "movie.%d.sel = %d\n", &id, &v);
+		if (n != 2)
+			break;
+
+		for (j = 0; j < list->count; j++) {
+			e = list->items[j];
+			if (e->id == id && v < e->children_count) {
+				e->sel = v;
+				break;
+			}
+		}
+	}
+
+	fclose(f);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -323,10 +391,13 @@ main(int argc, char **argv)
 	if (etvnet_errno != 0)
 		statusf("%s", etvnet_error());
 
+	load_selections();
+
 	print_status("UP,DOWN:move RIGHT:select LEFT:exit");
 	
 	while (!quit) {
 		draw_list();
+		save_selections();
 		wrefresh(ui.win);
 
 		int ch = portable_getch();

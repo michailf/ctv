@@ -215,9 +215,43 @@ append_movie(struct movie_list *list, struct movie_entry *e)
 	list->count++;
 }
 
+static void
+set_lowest_bitrate(json_object *files, struct movie_entry *e)
+{
+	json_object *file;
+	int i, files_count = json_object_array_length(files);
+	bool has_mp4 = false;
+	bool has_wmv = false;
+
+	for (i = 0; i < files_count; i++) {
+		file = json_object_array_get_idx(files, i);
+		int bitrate = get_int(file, "bitrate");
+		const char *format = get_str(file, "format");
+
+		if (strcmp(format, "mp4") == 0 && bitrate == 400) {
+			has_mp4 = true;
+			break;
+		}
+		else if (strcmp(format, "wmv") == 0 && bitrate == 250) {
+			has_wmv = true;
+		}
+	}
+
+	if (has_mp4) {
+		e->format = SF_MP4;
+		e->bitrate = 400;
+	} else if (has_wmv) {
+		e->format = SF_WMV;
+		e->bitrate = 250;
+	}
+}
+
 static struct movie_entry *
 create_movie(json_object *obj)
 {
+	json_object *files;
+	json_bool jres;
+
 	struct movie_entry *e = malloc(sizeof(struct movie_entry));
 
 	e->sel = 0;
@@ -226,6 +260,10 @@ create_movie(json_object *obj)
 	e->name = strdup(get_str(obj, "name"));
 	e->description = strdup(get_str(obj, "description"));
 	e->on_air = strdup(get_str(obj, "on_air"));
+
+	jres = json_object_object_get_ex(obj, "files", &files);
+	if (jres)
+		set_lowest_bitrate(files, e);
 
 	return e;
 }
@@ -389,17 +427,18 @@ not_activated:
 }
 
 char *
-etvnet_get_stream_url(int object_id, int bitrate)
+etvnet_get_stream_url(int object_id, enum stream_format format, int bitrate)
 {
 	char url[1000];
 	char name[100];
 	json_object *root;
 	json_object *obj;
 	json_bool jres;
+	const char *format_ext = (format == SF_MP4) ? "mp4" : "wmv";
 
 	etvnet_errno = 0;
-	snprintf(url, 499, "%svideo/media/%d/watch.json?format=mp4&protocol=hls&bitrate=%d",
-		 api_root, object_id, bitrate);
+	snprintf(url, 499, "%svideo/media/%d/watch.json?format=%s&protocol=hls&bitrate=%d",
+		 api_root, object_id, format_ext, bitrate);
 	snprintf(name, 99, "stream-%d", object_id);
 
 	root = get_cached(url, name);
