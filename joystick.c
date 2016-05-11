@@ -178,11 +178,12 @@ joystick_getch()
 
 	memset((void*)fdset, 0, sizeof(fdset));
 
-	for (i = 0; i < fdn; i++) {
+	for (i = 0; i < 4; i++) {
 		fdset[i].fd = fds[i];
-		fdset[i].events = POLLIN;
-		fprintf(stderr, "fdset[%d] = %d\n", i, fdset[i].fd);
+		fdset[i].events = POLLPRI|POLLERR;
+//		fprintf(stderr, "fdset[%d] = %d\n", i, fdset[i].fd);
 	}
+	fdset[4].events = POLLIN|POLLERR;
 
 	int rc = poll(fdset, fdn, timeout_ms);
 	fprintf(stderr, "poll: %d\n", rc);
@@ -191,18 +192,19 @@ joystick_getch()
 		err(1, "poll() failed: %d, %s", rc, strerror(rc));
 		return -1;
 	}
-	
+
 	int ch = -1;
 
-	for (i = 0; i < fdn && rc > 0; i++) {	
+	for (i = 0; i < fdn && rc > 0; i++) {
 		if (fdset[i].revents == 0)
 			continue;
 
 		char buf[64];
 		lseek(fdset[i].fd, 0, SEEK_SET);
-		read(fdset[i].fd, buf, 64);
+		int was_read = read(fdset[i].fd, buf, 64);
+		printf("read: %d: fds: %d, buf: %d\n", was_read, fdset[i].fd, buf[0]);
 		rc--;
-		
+
 		if (i == 0)
 			ch = KEY_UP;
 		if (i == 1)
@@ -214,7 +216,7 @@ joystick_getch()
 		if (i == 4)
 			ch = buf[0];
 
-		fprintf(stderr, "for: %d, ch: %d\n", i, ch);
+		fprintf(stderr, "for: %d, ch: %d, '%c'\n", i, ch, ch - 258 + 65);
 	}
 
 	return ch;
