@@ -7,6 +7,8 @@
 #include <poll.h>
 #include <err.h>
 #include <ncursesw/ncurses.h>
+#include "common/fs.h"
+#include "common/log.h"
 
 #define SYSFS_GPIO_DIR "/sys/class/gpio"
 #define MAX_BUF 64
@@ -141,31 +143,46 @@ gpio_get_value(int gpio, int *value)
 
 #define MAX_PINS 4
 
-static int pins[MAX_PINS] = { 17, 18, 27, 22  };
-static int fds[5] = { -1, -1, -1, -1, 0 };
+static bool inited = false;
+static int pins[MAX_PINS] = { 17, 18, 27, 22  };    /* BCM pins */
+static int gpio[MAX_PINS] = {  0,  1,  2,  3  };    /* gpio numbers */
+static int fds[5] =         { -1, -1, -1, -1, 0 };  /* descriptors */
 
 void
 joystick_init()
 {
+	if (!exists(SYSFS_GPIO_DIR)) {
+		logwarn("%s doesnt exist. Skip joystick initialization.", SYSFS_GPIO_DIR);
+		return;
+	}
+
 	int i, rc;
 
 	for (i = 0; i < MAX_PINS; i++) {
 		rc = gpio_export(pins[i]);
 		if (rc != 0)
-			err(1, "cannot export pin %d", pins[i]);
+			logfatal("cannot export pin %d", pins[i]);
 
 		rc = gpio_set_edge(pins[i], "rising");
 		if (rc != 0)
-			err(1, "cannot set rising edge for pin %d", pins[i]);
+			logfatal("cannot set rising edge for pin %d", pins[i]);
 
 		rc = gpio_set_active_low(pins[i], 0);
 		if (rc != 0)
-			err(1, "cannot unset active low for pin %d", pins[i]);
+			logfatal("cannot unset active low for pin %d", pins[i]);
+		
+		char pullup_cmd[100];
+		snprintf(pullup_cmd, 99, "gpio mode %d up", gpio[i]);
+		rc = system(pullup_cmd);
+		if (rc != 0)
+			logfatal("cannot exec %s. rc: %d", pullup_cmd, rc);
 
 		fds[i] = gpio_fd_open(pins[i]);
 		if (fds[i] == -1)
 			err(1, "cannot open pin %d", pins[i]);
 	}
+
+	inited = true;
 }
 
 int
@@ -181,15 +198,13 @@ joystick_getch()
 	for (i = 0; i < 4; i++) {
 		fdset[i].fd = fds[i];
 		fdset[i].events = POLLPRI|POLLERR;
-//		fprintf(stderr, "fdset[%d] = %d\n", i, fdset[i].fd);
 	}
 	fdset[4].events = POLLIN|POLLERR;
 
 	int rc = poll(fdset, fdn, timeout_ms);
-	fprintf(stderr, "poll: %d\n", rc);
 
 	if (rc < 0) {
-		err(1, "poll() failed: %d, %s", rc, strerror(rc));
+		logfatal("poll() failed: %d, %s", rc, strerror(rc));
 		return -1;
 	}
 
@@ -201,8 +216,7 @@ joystick_getch()
 
 		char buf[64];
 		lseek(fdset[i].fd, 0, SEEK_SET);
-		int was_read = read(fdset[i].fd, buf, 64);
-		printf("read: %d: fds: %d, buf: %d\n", was_read, fdset[i].fd, buf[0]);
+		ssize_t was_read = read(fdset[i].fd, buf, 64);
 		rc--;
 
 		if (i == 0)
@@ -213,10 +227,15 @@ joystick_getch()
 			ch = KEY_LEFT;
 		if (i == 3)
 			ch = KEY_RIGHT;
-		if (i == 4)
-			ch = buf[0];
-
-		fprintf(stderr, "for: %d, ch: %d, '%c'\n", i, ch, ch - 258 + 65);
+		if (i == 4) {
+			if (was_read == 3 && buf[0] == 27 && buf[1] == '[')
+				ch = buf[2];
+			else if (was_read == 1)
+				ch = buf[0];
+			else
+				printf("was_read: %ld: 0x%02X,0x%02X,0x%02X\r\n",
+				       was_read, (uint8_t)buf[0], (uint8_t)buf[1], (uint8_t)buf[2]);
+		}
 	}
 
 	return ch;

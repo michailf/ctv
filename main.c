@@ -16,10 +16,7 @@
 #include "version.h"
 #include "api.h"
 #include "util.h"
-
-#ifdef RASPBERRY
 #include "joystick.h"
-#endif
 
 static void
 synopsis()
@@ -269,16 +266,6 @@ play_movie()
 	free(url);
 }
 
-static int
-portable_getch()
-{
-#ifdef RASPBERRY
-	return joystick_getch();
-#else
-	return getch();
-#endif
-}
-
 static void
 activate_tv_box()
 {
@@ -404,7 +391,7 @@ on_idle()
 	turnoff_monitor();
 	while (ch == -1) {
 		logi("wait for any key");
-		ch = portable_getch();
+		ch = joystick_getch();
 	}
 	turnon_monitor();
 	sleep(5);
@@ -425,10 +412,7 @@ main(int argc, char **argv)
 	log_open("ctv.log");
 	logi("=======================================");
 
-#ifdef RASPBERRY
 	joystick_init();
-#endif
-
 	init_ui(&ui);
 	status_init(ui.win, ui.height - 22);
 	atexit(exit_handler);
@@ -453,7 +437,7 @@ main(int argc, char **argv)
 		save_selections();
 		wrefresh(ui.win);
 
-		int ch = portable_getch();
+		int ch = joystick_getch();
 
 		switch (ch) {
 			case -1:
