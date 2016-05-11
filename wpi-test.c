@@ -81,10 +81,11 @@ int gpio_set_active_low(int gpio, int alow_flag)
 	return 0;
 }
 
+static int count = 0;
 int
 wait_event(int *fds)
 {
-	struct pollfd fdset[4];
+	struct pollfd fdset[5];
 	int timeout_ms = 300000;
 	int i;
 
@@ -93,9 +94,15 @@ wait_event(int *fds)
 	for (i = 0; i < SIZE; i++) {
 		fdset[i].fd = fds[i];
 		fdset[i].events = POLLPRI | POLLERR;
+		fdset[i].revents = 0;
 	}
+	
+	fdset[4].fd = 0;
+	fdset[4].events = POLLIN;
+	fdset[4].revents = 0;
 
-	int rc = poll(fdset, SIZE, timeout_ms);
+	printf("%d. entering poll. fds[4] = %d\n", count++, fdset[4].fd);
+	int rc = poll(fdset, 5, timeout_ms);
 
 	printf("poll: rc: %d\n", rc);
 
@@ -104,16 +111,17 @@ wait_event(int *fds)
 		return -1;
 	}
 
-	for (i = 0; i < SIZE && rc > 0; i++) {	
+	for (i = 0; i < 5 && rc > 0; i++) {	
 		if (fdset[i].revents == 0)
 			continue;
 		printf("%d. revents: 0x%02X\n", i, fdset[i].revents);
 		printf("    POLLPRI: 0x%02X\n", fdset[i].revents & POLLPRI);
 		printf("    POLLERR: 0x%02X\n", fdset[i].revents & POLLERR);
+		printf("    POLLIN: 0x%02X\n", fdset[i].revents & POLLIN);
 		char buf[64];
-		lseek(fds[i], 0, SEEK_SET);
-		int len = read(fds[i], buf, 64);
-		printf("    len: %d, %02X,%02X\n\n", len, buf[0], buf[1]);
+//		lseek(fds[i], 0, SEEK_SET);
+		int len = read(fdset[i].fd, buf, 64);
+		printf("    len: %d, %02X,%02X, errno: %d\n\n", len, buf[0], buf[1], errno);
 		rc--;
 	}
 

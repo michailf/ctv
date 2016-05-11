@@ -34,3 +34,5 @@ endif()
 add_executable(ctv ${SOURCES})
 add_dependencies(ctv mkversion mkresource)
 target_link_libraries(ctv ${LIBS})
+
+add_executable(joystick-test joystick.c joystick-test.c)

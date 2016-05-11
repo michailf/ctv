@@ -304,6 +304,10 @@ main(int argc, char **argv)
 		return 0;
 	}
 
+#ifdef RASPBERRY
+	joystick_init();
+#endif
+
 	init_ui(&ui);
 	status_init(ui.win, ui.height - 22);
 	atexit(exit_handler);
@@ -320,7 +324,7 @@ main(int argc, char **argv)
 		statusf("%s", etvnet_error());
 
 	print_status("UP,DOWN:move RIGHT:select LEFT:exit");
-
+	
 	while (!quit) {
 		draw_list();
 		wrefresh(ui.win);

@@ -179,37 +179,44 @@ joystick_getch()
 
 	for (i = 0; i < fdn; i++) {
 		fdset[i].fd = fds[i];
-		fdset[i].events = POLLPRI | POLLERR;
+		fdset[i].events = POLLIN;
+		fprintf(stderr, "fdset[%d] = %d\n", i, fdset[i].fd);
 	}
 
 	int rc = poll(fdset, fdn, timeout_ms);
+	fprintf(stderr, "poll: %d\n", rc);
 
 	if (rc < 0) {
 		err(1, "poll() failed: %d, %s", rc, strerror(rc));
 		return -1;
 	}
+	
+	int ch = -1;
 
 	for (i = 0; i < fdn && rc > 0; i++) {	
 		if (fdset[i].revents == 0)
 			continue;
 
 		char buf[64];
-		lseek(fds[i], 0, SEEK_SET);
-		read(fds[i], buf, 64);
+		lseek(fdset[i].fd, 0, SEEK_SET);
+		read(fdset[i].fd, buf, 64);
 		rc--;
 		
 		if (i == 0)
-			return KEY_UP;
+			ch = KEY_UP;
 		if (i == 1)
-			return KEY_DOWN;
+			ch = KEY_DOWN;
 		if (i == 2)
-			return KEY_LEFT;
+			ch = KEY_LEFT;
 		if (i == 3)
-			return KEY_RIGHT;
+			ch = KEY_RIGHT;
 		if (i == 4)
-			return getch();
+			ch = buf[0];
+
+		fprintf(stderr, "for: %d, ch: %d\n", i, ch);
 	}
 
-	return 0;
+	printf("ch: %d\n", ch);
+	return ch;
 }
 
