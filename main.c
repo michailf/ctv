@@ -376,6 +376,8 @@ turnoff_monitor()
 	int rc = system(cmd);
 	if (rc != 0)
 		logwarn("error: %d. You may need to set chmod u+s /opt/vc/bin/tvservice", rc);
+	else
+		print_status("monitor is off");
 }
 
 static void
@@ -386,6 +388,8 @@ turnon_monitor()
 	int rc = system(cmd);
 	if (rc != 0)
 		logwarn("error: %d. You may need to set chmod u+s /opt/vc/bin/tvservice", rc);
+	else
+		print_status("monitor is on");
 }
 
 static void
@@ -404,6 +408,7 @@ on_idle()
 	}
 	turnon_monitor();
 	sleep(5);
+	idle_minutes = 0;
 }
 
 int
