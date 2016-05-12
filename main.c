@@ -370,7 +370,7 @@ turnoff_monitor()
 static void
 turnon_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -p";
+	const char *cmd = "/opt/vc/bin/tvservice -p; fbset -accel true; fbset -accel false";
 	logi("turning on monitor");
 	int rc = system(cmd);
 	if (rc != 0)
