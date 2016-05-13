@@ -17,7 +17,10 @@ int main()
 	int ch = -1;
 	while (ch != 'q') {
 		ch = joystick_getch();
-		printf("%d %d(%c)\r\n", count++, ch, ch);
+		if (ch > 0)
+			logi("%d ch: %d\r", count++, ch);
+		if (ch == 13)
+			logi("=====================================\r");
 	}
 
 	endwin();

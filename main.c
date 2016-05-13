@@ -200,9 +200,6 @@ prev_number()
 static void
 exit_handler()
 {
-	logi("exit_handler. wait for any key");
-	timeout(-1);
-	getch();
 	flushinp();
 	endwin();
 	logi("stopped");
@@ -441,7 +438,7 @@ main(int argc, char **argv)
 
 		switch (ch) {
 			case -1:
-				on_idle();
+//				on_idle();
 				break;
 			case 'q': case 'Q':
 				quit = 1;
