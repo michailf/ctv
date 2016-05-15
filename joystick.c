@@ -143,19 +143,20 @@ gpio_get_value(int gpio, int *value)
 	return 0;
 }
 
-#define MAX_PINS 4
+#define MAX_PINS 5
+#define FD_SIZE (MAX_PINS+1) // pins and stdin
 
 static bool inited = false;
-static int pins[MAX_PINS] = { 17, 18, 27, 22  };    /* BCM pins */
-static int gpio[MAX_PINS] = {  0,  1,  2,  3  };    /* gpio numbers */
-static int fds[5] =         { -1, -1, -1, -1, 0 };  /* descriptors */
-static int keys[4] = { KEY_DOWN, KEY_LEFT, KEY_UP, KEY_RIGHT };
-static struct pollfd fdset[5]; /* pool structs for 4 joystick buttons and stdin */
+static int pins[MAX_PINS] = { 17, 18, 27, 22, 23  };    /* BCM pins */
+static int gpio[MAX_PINS] = {  0,  1,  2,  3,  4  };    /* gpio numbers */
+static int fds[FD_SIZE] =         { -1, -1, -1, -1, -1, 0 };  /* descriptors */
+static int keys[MAX_PINS] = { KEY_DOWN, KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_HOME };
+static uint64_t last_press;
+static int last_pin = -1;
 
-static int64_t last_press = 0;
-static int last_index = -1;
+static struct pollfd fdset[FD_SIZE]; /* pool structs for 5 joystick buttons and stdin */
 
-static int64_t
+static uint64_t
 get_ms()
 {
 	struct timeval tv;
@@ -168,8 +169,8 @@ joystick_init()
 {
 	int i, rc;
 
+	fdset[MAX_PINS].events = POLLIN|POLLERR;
 	last_press = get_ms();
-	fdset[4].events = POLLIN|POLLERR;
 
 	if (!exists(SYSFS_GPIO_DIR)) {
 		logwarn("%s doesnt exist. Skip joystick initialization.", SYSFS_GPIO_DIR);
@@ -189,7 +190,7 @@ joystick_init()
 		if (rc != 0)
 			logfatal("cannot set falling edge for pin %d", pins[i]);
 
-		rc = gpio_set_active_low(pins[i], 1);
+		rc = gpio_set_active_low(pins[i], 0);
 		if (rc != 0)
 			logfatal("cannot set active low for pin %d", pins[i]);
 		
@@ -214,36 +215,39 @@ static int
 wait_event(int timeout, int *key)
 {
 	char buf[64];
-	int i, rc;
+	int i, rc, ch = -1, pin = -1;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < FD_SIZE; i++) {
 		fdset[i].revents = 0;
 	}
 
-	rc = poll(fdset, 5, timeout);
+	rc = poll(fdset, FD_SIZE, timeout);
 	if (rc < 0)
 		logfatal("poll() failed: %d, %s", rc, strerror(rc));
 
-	for (i = 0; i < 5 && rc > 0; i++) {
+	for (i = 0; i < FD_SIZE && rc > 0; i++) {
 		if (fdset[i].revents == 0)
 			continue;
 
 		lseek(fdset[i].fd, 0, SEEK_SET);
 		ssize_t was_read = read(fdset[i].fd, buf, 64);
-//		logi("i: %d, was_read: %d, buf[0]: %d\r", i, was_read, buf[was_read-1]);
+//		logi("i: %d, was_read: %d, b: %d,%d,%d\r", i, was_read, buf[0], buf[1], buf[1], buf[2]);
 		rc--;
-		*key = (i == 4) ? buf[was_read-1] : keys[i];
-		
-		return i;
+		ch = (i == MAX_PINS) ? buf[was_read-1] : keys[i];
+		pin = i;
 	}
 	
-	return -1;
+	if (ch != -1) {
+		*key = ch;
+	}
+	
+	return pin;
 }
 
 static int count = 0;
 
 int
-joystick_getch()
+joystick_getch2()
 {
 	if (count++ > 1000)
 		return 'q';
@@ -254,7 +258,7 @@ joystick_getch()
 //	logi("poll1: %d\r", pin1);
 	if (pin1 == -1)
 		return -1;
-	if (pin1 == 4)
+	if (pin1 == MAX_PINS)
 		return key1;
 
 	usleep(100000);
@@ -270,22 +274,39 @@ joystick_getch()
 
 //	logi("poll2: %d\r", pin2);
 	if (pin1 == pin2) {
-		switch (key2) {
-			case KEY_UP:
-				logi("UP\r");
-				break;
-			case KEY_DOWN:
-				logi("DOWN\r");
-				break;
-			case KEY_LEFT:
-				logi("LEFT\r");
-				break;
-			case KEY_RIGHT:
-				logi("RIGHT\r");
-				break;
-		}
 		return key2;
 	}
 
 	return -1;
+}
+
+int
+joystick_getch()
+{
+	if (count++ > 1000)
+		return 'q';
+
+	int pin1, pin2, key1 = -1, key2 = -1;
+
+	if (last_pin != MAX_PINS) {
+		wait_event(10, &key1);
+		uint64_t now = get_ms();
+	//	logi("now: %llu last: %llu\r", now, last_press);
+
+		while (now - last_press < 300) {
+			pin1 = wait_event(100, &key1);
+			now = get_ms();
+	//		logi("now: %llu last: %llu, diff: %llu\r", now, last_press, now - last_press);
+		}
+		wait_event(1, &key1);
+		now = get_ms();
+	//	logi("now: %llu last: %llu\r", now, last_press);
+	}
+
+	pin1 = wait_event(60000, &key1);
+	last_press = get_ms();
+	last_pin = pin1;
+//	logi("now: %llu last: %llu\r", now, last_press);
+
+	return key1;
 }
