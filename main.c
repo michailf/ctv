@@ -49,7 +49,7 @@ version()
 static bool activate_box = false;
 static char cache_dir[PATH_MAX];
 static char local_dir[PATH_MAX];
-static int idle_minutes = 0;
+static time_t idle_start = 0;
 
 static void
 init(int argc, char **argv)
@@ -83,6 +83,8 @@ init(int argc, char **argv)
 	mkdir(local_dir, 0700);
 	strcat(local_dir, "etvcc/");
 	mkdir(local_dir, 0700);
+
+	idle_start = time(NULL);
 }
 
 struct movie_list *list; /* read from my favorites */
@@ -229,7 +231,7 @@ run_player(const char *url)
 	else
 		snprintf(omxcmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
 
-	logi("starting player: %s", cmd);
+	logi("starting player: %s", omxcmd);
 
 	while (!quit) {
 
@@ -264,12 +266,10 @@ run_player(const char *url)
 				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumeup");
 				logi("dbus.volumeup. rc: %d\r", rc);
 				break;
-			}
 		}
 	}
 
-	snprintf(msg, 99, "player stopped");
-	print_status(msg);
+	print_status("player stopped");
 
 }
 
@@ -419,9 +419,13 @@ on_idle()
 {
 	int ch = -1;
 
-	idle_minutes++;
-	if (idle_minutes < 5)
+	time_t idle_interval = time(NULL) - idle_start;
+
+	if (idle_interval < 5*60) {
+		char msg[100];
+		snprintf(msg, 99, "on idle: %ju sec", idle_interval);
 		return;
+	}
 
 	turnoff_monitor();
 	while (ch == -1) {
@@ -430,7 +434,7 @@ on_idle()
 	}
 	turnon_monitor();
 	sleep(5);
-	idle_minutes = 0;
+	idle_start = time(NULL);
 }
 
 int
@@ -474,9 +478,12 @@ main(int argc, char **argv)
 
 		int ch = joystick_getch();
 
+		if (ch != -1)
+			idle_start = time(NULL);
+
 		switch (ch) {
 			case -1:
-//				on_idle();
+				on_idle();
 				break;
 			case 'q': case 'Q':
 				quit = 1;
