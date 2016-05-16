@@ -206,6 +206,8 @@ joystick_init()
 
 		fdset[i].fd = fds[i];
 		fdset[i].events = POLLPRI|POLLERR;
+
+		usleep(20000);
 	}
 
 	inited = true;
@@ -244,69 +246,34 @@ wait_event(int timeout, int *key)
 	return pin;
 }
 
-static int count = 0;
-
-int
-joystick_getch2()
-{
-	if (count++ > 1000)
-		return 'q';
-
-	int pin1, pin2, key1 = -1, key2 = -1;
-	
-	pin1 = wait_event(60000, &key1);
-//	logi("poll1: %d\r", pin1);
-	if (pin1 == -1)
-		return -1;
-	if (pin1 == MAX_PINS)
-		return key1;
-
-	usleep(100000);
-	int v = -1;
-	gpio_get_value(pins[pin1], &v);
-//	logi("v: %d\r", v);
-	if (v == 0) {
-		pin2 = pin1;
-		key2 = keys[pin2];
-	}
-
-	wait_event(5, &key2);
-
-//	logi("poll2: %d\r", pin2);
-	if (pin1 == pin2) {
-		return key2;
-	}
-
-	return -1;
-}
+int debug = 0;
 
 int
 joystick_getch()
 {
-	if (count++ > 1000)
-		return 'q';
-
-	int pin1, pin2, key1 = -1, key2 = -1;
+	int pin1, key1 = -1;
 
 	if (last_pin != MAX_PINS) {
 		wait_event(10, &key1);
 		uint64_t now = get_ms();
-	//	logi("now: %llu last: %llu\r", now, last_press);
+		if (debug)
+			logi("now: %llu last: %llu\r", now, last_press);
 
 		while (now - last_press < 300) {
 			pin1 = wait_event(100, &key1);
 			now = get_ms();
-	//		logi("now: %llu last: %llu, diff: %llu\r", now, last_press, now - last_press);
+			if (debug)
+				logi("now: %llu last: %llu, diff: %llu\r", now, last_press, now - last_press);
 		}
 		wait_event(1, &key1);
 		now = get_ms();
-	//	logi("now: %llu last: %llu\r", now, last_press);
+		if (debug)
+			logi("now: %llu last: %llu\r", now, last_press);
 	}
 
 	pin1 = wait_event(60000, &key1);
 	last_press = get_ms();
 	last_pin = pin1;
-//	logi("now: %llu last: %llu\r", now, last_press);
 
 	return key1;
 }

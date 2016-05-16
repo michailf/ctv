@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <ncursesw/ncurses.h>
 #include "joystick.h"
 #include "common/log.h"

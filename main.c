@@ -220,17 +220,55 @@ print_status(const char *msg)
 static void
 run_player(const char *url)
 {
-	char cmd[2000];
+	char omxcmd[2000];
 	char msg[100];
+	int player_started = 0, rc, ch, quit = 0;
 
 	if (strcmp("/home/pi", getenv("HOME")) == 0)
-		snprintf(cmd, 1999, "omxplayer --live --blank --key-config /home/pi/bin/omxp_keys.txt '%s'", url);
+		snprintf(omxcmd, 1999, "omxplayer --live --win 100,100,800,600 --key-config /home/pi/bin/omxp_keys.txt '%s' &", url);
 	else
-		snprintf(cmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
+		snprintf(omxcmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
 
 	logi("starting player: %s", cmd);
-	int rc = system(cmd);
-	snprintf(msg, 99, "player stopped: %d", rc);
+
+	while (!quit) {
+
+		ch = joystick_getch();
+
+		switch (ch) {
+			case KEY_LEFT:
+				if (player_started == 0) {
+					quit = 1;
+				} else if (player_started == 1) {
+					rc = system("/home/pi/src/ctv/dbuscontrol.sh stop");
+					logi("dbus.stop. rc: %d\r", rc);
+					player_started = 0;
+				}
+				break;
+			case KEY_RIGHT:
+				if (player_started == 0) {
+					rc = system(omxcmd);
+					if (rc == 0)
+						player_started = 1;
+					logi("start omxplayer. rc: %d\r", rc);
+				} else if (player_started == 1) {
+					rc = system("/home/pi/src/ctv/dbuscontrol.sh seek 60000000");
+					logi("dbus.seek. rc: %d\r", rc);
+				}
+				break;
+			case KEY_DOWN:
+				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumedown");
+				logi("dbus.volumedown. rc: %d\r", rc);
+				break;
+			case KEY_UP:
+				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumeup");
+				logi("dbus.volumeup. rc: %d\r", rc);
+				break;
+			}
+		}
+	}
+
+	snprintf(msg, 99, "player stopped");
 	print_status(msg);
 
 }
