@@ -37,10 +37,10 @@ gpio_export(int gpio)
 static int
 gpio_set_dir(int gpio, int out_flag)
 {
-	int fd, len;
+	int fd;
 	char buf[MAX_BUF];
 
-	len = snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR  "/gpio%d/direction", gpio);
+	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR  "/gpio%d/direction", gpio);
 
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
@@ -61,10 +61,10 @@ gpio_set_dir(int gpio, int out_flag)
 static int
 gpio_set_active_low(int gpio, int alow_flag)
 {
-	int fd, len;
+	int fd;
 	char buf[MAX_BUF];
 
-	len = snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR  "/gpio%d/active_low", gpio);
+	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR  "/gpio%d/active_low", gpio);
 
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
@@ -85,10 +85,10 @@ gpio_set_active_low(int gpio, int alow_flag)
 static int
 gpio_set_edge(int gpio, char *edge)
 {
-	int fd, len;
+	int fd;
 	char buf[MAX_BUF];
 
-	len = snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/edge", gpio);
+	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/edge", gpio);
 
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
@@ -114,33 +114,6 @@ gpio_fd_open(int gpio)
 		perror("gpio/fd_open");
 	}
 	return fd;
-}
-
-static int
-gpio_get_value(int gpio, int *value)
-{
-	int fd, len;
-	char buf[MAX_BUF];
-	char ch;
-
-	len = snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/value", gpio);
-
-	fd = open(buf, O_RDONLY);
-	if (fd < 0) {
-		perror("gpio/get-value");
-		return fd;
-	}
-
-	read(fd, &ch, 1);
-
-	if (ch != '0') {
-		*value = 1;
-	} else {
-		*value = 0;
-	}
-
-	close(fd);
-	return 0;
 }
 
 #define MAX_PINS 5
@@ -260,7 +233,7 @@ joystick_getch()
 			logi("now: %llu last: %llu\r", now, last_press);
 
 		while (now - last_press < 300) {
-			pin1 = wait_event(100, &key1);
+			wait_event(100, &key1);
 			now = get_ms();
 			if (debug)
 				logi("now: %llu last: %llu, diff: %llu\r", now, last_press, now - last_press);
