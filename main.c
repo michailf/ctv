@@ -235,6 +235,8 @@ run_player(const char *url)
 
 		switch (ch) {
 			case KEY_LEFT:
+			case 'D':
+			case 'a':
 				if (player_started == 0) {
 					quit = 1;
 				} else if (player_started == 1) {
@@ -244,6 +246,8 @@ run_player(const char *url)
 				}
 				break;
 			case KEY_RIGHT:
+			case 'C':
+			case 'd':
 				if (player_started == 0) {
 					rc = system(omxcmd);
 					if (rc == 0)
@@ -255,10 +259,14 @@ run_player(const char *url)
 				}
 				break;
 			case KEY_DOWN:
+			case 'B':
+			case 's':
 				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumedown");
 				logi("dbus.volumedown. rc: %d\r", rc);
 				break;
 			case KEY_UP:
+			case 'A':
+			case 'w':
 				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumeup");
 				logi("dbus.volumeup. rc: %d\r", rc);
 				break;
