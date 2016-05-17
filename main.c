@@ -220,54 +220,62 @@ static void
 run_player(const char *url)
 {
 	char omxcmd[2000];
-	int player_started = 0, rc, ch, quit = 0;
+	int player_started = 0, rc, ch, quit = 0, first = 1;
 
 	if (strcmp("/home/pi", getenv("HOME")) == 0)
-		snprintf(omxcmd, 1999, "omxplayer --live --win 100,100,800,600 --key-config /home/pi/bin/omxp_keys.txt '%s' &", url);
+		snprintf(omxcmd, 1999, "omxplayer --live --win 0,0,1080,608 --key-config /home/pi/bin/omxp_keys.txt '%s' >/dev/null 2>&1 &", url);
 	else
 		snprintf(omxcmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
 
 	logi("starting player: %s", omxcmd);
+	ch = KEY_RIGHT;
 
 	while (!quit) {
 
-		ch = joystick_getch();
+		if (first == 0)
+			ch = joystick_getch();
+
+		first = 0;
 
 		switch (ch) {
 			case KEY_LEFT:
 			case 'D':
 			case 'a':
-				if (player_started == 0) {
-					quit = 1;
-				} else if (player_started == 1) {
-					rc = system("/home/pi/src/ctv/dbuscontrol.sh stop");
+				if (player_started == 1) {
+					print_status("stop");
+					rc = system("/home/pi/src/ctv/dbuscontrol.sh stop >/dev/null 2>&1");
 					logi("dbus.stop. rc: %d\r", rc);
 					player_started = 0;
 				}
+				quit = 1;
 				break;
 			case KEY_RIGHT:
 			case 'C':
 			case 'd':
 				if (player_started == 0) {
+					print_status("start");
 					rc = system(omxcmd);
 					if (rc == 0)
 						player_started = 1;
 					logi("start omxplayer. rc: %d\r", rc);
 				} else if (player_started == 1) {
-					rc = system("/home/pi/src/ctv/dbuscontrol.sh seek 60000000");
+					print_status("move forward 60 sec");
+					rc = system("/home/pi/src/ctv/dbuscontrol.sh seek 60000000 >/dev/null 2>&1");
 					logi("dbus.seek. rc: %d\r", rc);
 				}
 				break;
 			case KEY_DOWN:
 			case 'B':
 			case 's':
-				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumedown");
+				print_status("volume down");
+				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumedown >/dev/null 2>&1");
 				logi("dbus.volumedown. rc: %d\r", rc);
 				break;
 			case KEY_UP:
 			case 'A':
 			case 'w':
-				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumeup");
+				print_status("volume up");
+				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumeup >/dev/null 2>&1");
 				logi("dbus.volumeup. rc: %d\r", rc);
 				break;
 		}
