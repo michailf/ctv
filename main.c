@@ -99,7 +99,6 @@ struct ui
 	int height;
 	int width;
 	WINDOW *win;
-	WINDOW *win_desc;
 	enum scroll_mode scroll;
 };
 
@@ -117,10 +116,8 @@ init_ui(struct ui *ui)
 	refresh();
 	noecho();
 	cbreak();
-	ui->win = newwin(ui->height - 20, 70, 2, 1);
-	ui->win_desc = newwin(10, 70, 60, 2);
+	ui->win = newwin(ui->height - 4, 70, 2, 1);
 	box(ui->win, 0, 0);
-	box(ui->win_desc, 0, 0);
 	curs_set(0);
 }
 
@@ -213,8 +210,8 @@ print_status(const char *msg)
 {
 	logi(msg);
 	wattron(ui.win, COLOR_PAIR(3));
-	mvwaddstr(ui.win, ui.height - 22, 2, "                                                                  ");
-	mvwaddstr(ui.win, ui.height - 22, 3, msg);
+	mvwaddstr(ui.win, ui.height - 6, 2, "                                                                  ");
+	mvwaddstr(ui.win, ui.height - 6, 3, msg);
 	wattroff(ui.win, COLOR_PAIR(3));
 	wrefresh(ui.win);
 }
@@ -223,7 +220,6 @@ static void
 run_player(const char *url)
 {
 	char omxcmd[2000];
-	char msg[100];
 	int player_started = 0, rc, ch, quit = 0;
 
 	if (strcmp("/home/pi", getenv("HOME")) == 0)
@@ -453,7 +449,7 @@ main(int argc, char **argv)
 
 	joystick_init();
 	init_ui(&ui);
-	status_init(ui.win, ui.height - 22);
+	status_init(ui.win, ui.height - 2);
 	atexit(exit_handler);
 	timeout(0);
 
