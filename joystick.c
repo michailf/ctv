@@ -137,10 +137,64 @@ get_ms()
 	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+static bool
+init_pins()
+{
+	int i, rc;
+
+	for (i = 0; i < MAX_PINS; i++) {
+		rc = gpio_export(pins[i]);
+		if (rc != 0) {
+			logwarn("cannot export pin %d", pins[i]);
+			return false;
+		}
+
+		rc = gpio_set_dir(pins[i], 0);
+		if (rc != 0) {
+			logwarn("cannot set dir to in for pin %d", pins[i]);
+			return false;
+		}
+
+		rc = gpio_set_edge(pins[i], "falling");
+		if (rc != 0) {
+			logwarn("cannot set falling edge for pin %d", pins[i]);
+			return false;
+		}
+
+		rc = gpio_set_active_low(pins[i], 0);
+		if (rc != 0) {
+			logwarn("cannot set active low for pin %d", pins[i]);
+			return false;
+		}
+
+		char pullup_cmd[100];
+		snprintf(pullup_cmd, 99, "gpio mode %d up", gpio[i]);
+		rc = system(pullup_cmd);
+		if (rc != 0) {
+			logwarn("cannot exec %s. rc: %d", pullup_cmd, rc);
+			return false;
+		}
+
+		fds[i] = gpio_fd_open(pins[i]);
+		if (fds[i] == -1) {
+			logwarn("cannot open pin %d", pins[i]);
+			return false;
+		}
+
+		fdset[i].fd = fds[i];
+		fdset[i].events = POLLPRI|POLLERR;
+
+		usleep(100000);
+	}
+
+	return true;
+}
+
 void
 joystick_init()
 {
-	int i, rc;
+	int i;
+	bool last_res = false;
 
 	fdset[MAX_PINS].events = POLLIN|POLLERR;
 	last_press = get_ms();
@@ -151,36 +205,13 @@ joystick_init()
 	}
 
 	for (i = 0; i < MAX_PINS; i++) {
-		rc = gpio_export(pins[i]);
-		if (rc != 0)
-			logfatal("cannot export pin %d", pins[i]);
+		last_res = init_pins();
+		if (last_res)
+			break;
+	}
 
-		rc = gpio_set_dir(pins[i], 0);
-		if (rc != 0)
-			logfatal("cannot set dir to in for pin %d", pins[i]);
-
-		rc = gpio_set_edge(pins[i], "falling");
-		if (rc != 0)
-			logfatal("cannot set falling edge for pin %d", pins[i]);
-
-		rc = gpio_set_active_low(pins[i], 0);
-		if (rc != 0)
-			logfatal("cannot set active low for pin %d", pins[i]);
-		
-		char pullup_cmd[100];
-		snprintf(pullup_cmd, 99, "gpio mode %d up", gpio[i]);
-		rc = system(pullup_cmd);
-		if (rc != 0)
-			logfatal("cannot exec %s. rc: %d", pullup_cmd, rc);
-
-		fds[i] = gpio_fd_open(pins[i]);
-		if (fds[i] == -1)
-			err(1, "cannot open pin %d", pins[i]);
-
-		fdset[i].fd = fds[i];
-		fdset[i].events = POLLPRI|POLLERR;
-
-		usleep(100000);
+	if (!last_res) {
+		logfatal("cannot init pins after %d attempts", MAX_PINS);
 	}
 
 	inited = true;

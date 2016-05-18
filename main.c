@@ -1,6 +1,7 @@
 #include <json-c/json.h>
 #include <limits.h>
 #include <err.h>
+#include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,6 +127,8 @@ struct ui ui;
 static void
 draw_list()
 {
+	box(ui.win, 0, 0);
+
 	int i;
 	for (i = 0; i < list->count; i++) {
 
@@ -159,6 +162,107 @@ draw_list()
 		}
 
 		mvwaddstr(ui.win, i+2, 47, e->on_air);
+	}
+}
+
+static void
+print_status(const char *msg)
+{
+	logi(msg);
+	wattron(ui.win, COLOR_PAIR(3));
+	mvwaddstr(ui.win, ui.height - 6, 2, "                                                                  ");
+	mvwaddstr(ui.win, ui.height - 6, 3, msg);
+	wattroff(ui.win, COLOR_PAIR(3));
+	wrefresh(ui.win);
+}
+
+enum menu_id {
+	MI_ETVNET,
+	MI_CAMERA,
+	MI_ACTIVATION,
+	MI_UPDATER
+};
+
+
+struct menu_entry {
+	enum menu_id id;
+	char *name;
+};
+
+struct menu_list {
+	int count;
+	int sel;             /* selected index */
+	struct menu_entry *items;
+};
+
+static struct menu_entry menu_items[] = {
+	{ MI_ETVNET, "etv" },
+	{ MI_CAMERA, "camera" },
+	{ MI_ACTIVATION, "activate" },
+	{ MI_UPDATER, "update" }
+};
+
+static struct menu_list menu = {
+	.count = 4,
+	.sel = 0,
+	.items = menu_items
+};
+
+static bool camera_enabled = false;
+
+static void
+draw_menu()
+{
+	box(ui.win, 0, 0);
+
+	int i;
+	for (i = 0; i < menu.count; i++) {
+
+		if (i == menu.sel) {
+			wattron(ui.win, COLOR_PAIR(1));
+			mvwaddstr(ui.win, i+2, 2, "[");
+		} else {
+			mvwaddstr(ui.win, i+2, 2, " ");
+		}
+
+		struct menu_entry *e = &menu.items[i];
+		mvwaddstr(ui.win, i+2, 4, e->name);
+
+		if (i == menu.sel) {
+			mvwaddstr(ui.win, i+2, 14, "]");
+			wattroff(ui.win, COLOR_PAIR(1));
+		} else {
+			mvwaddstr(ui.win, i+2, 14, " ");
+		}
+
+		mvwaddstr(ui.win, i+2, 16, "  ");
+
+		const char *str = "";
+		char buf[100];
+
+		if (e->id == MI_CAMERA) {
+			if (camera_enabled)
+				str = "Enabled ";
+			else
+				str = "Disabled";
+		} else if (e->id == MI_UPDATER) {
+			snprintf(buf, 99, "%s (%s)", app_version, app_date);
+			str = buf;
+		}
+
+		mvwaddstr(ui.win, i+2, 18, str);
+	}
+
+
+	struct menu_entry *e = &menu.items[menu.sel];
+
+	if (e->id == MI_CAMERA) {
+		if (camera_enabled)
+			print_status("DISABLE>");
+		else
+			print_status("ENABLE>");
+	} else {
+		print_status("                      ");
 	}
 }
 
@@ -203,17 +307,6 @@ exit_handler()
 	endwin();
 	logi("stopped");
 	system("tail -100 ctv.log");
-}
-
-static void
-print_status(const char *msg)
-{
-	logi(msg);
-	wattron(ui.win, COLOR_PAIR(3));
-	mvwaddstr(ui.win, ui.height - 6, 2, "                                                                  ");
-	mvwaddstr(ui.win, ui.height - 6, 3, msg);
-	wattroff(ui.win, COLOR_PAIR(3));
-	wrefresh(ui.win);
 }
 
 static void
@@ -434,8 +527,7 @@ on_idle()
 	time_t idle_interval = time(NULL) - idle_start;
 
 	if (idle_interval < 5*60) {
-		char msg[100];
-		snprintf(msg, 99, "on idle: %ju sec", idle_interval);
+		logi("on idle: %ju sec", idle_interval);
 		return;
 	}
 
@@ -449,25 +541,10 @@ on_idle()
 	idle_start = time(NULL);
 }
 
-int
-main(int argc, char **argv)
+static void
+etvnet_loop()
 {
 	int quit = 0;
-	init(argc, argv);
-
-	if (activate_box) {
-		activate_tv_box();
-		return 0;
-	}
-
-	log_open("ctv.log");
-	logi("=======================================");
-
-	joystick_init();
-	init_ui(&ui);
-	status_init(ui.win, ui.height - 2);
-	atexit(exit_handler);
-	timeout(0);
 
 	print_status("Connecting to etvnet.com");
 	etvnet_init();
@@ -481,8 +558,8 @@ main(int argc, char **argv)
 
 	load_selections();
 
-	print_status("UP,DOWN:move RIGHT:select LEFT:exit");
-	
+	print_status("<MENU SELECT_PART>");
+
 	while (!quit) {
 		draw_list();
 		save_selections();
@@ -523,7 +600,7 @@ main(int argc, char **argv)
 					quit = 1;
 				else if (ui.scroll == eNumbers) {
 					ui.scroll = eNames;
-					print_status("UP,DOWN:move RIGHT:select LEFT:exit");
+					print_status("<MENU SELECT_PART>");
 				}
 				break;
 			case 'd':
@@ -533,9 +610,115 @@ main(int argc, char **argv)
 					play_movie();
 				else if (ui.scroll == eNames) {
 					ui.scroll = eNumbers;
-					print_status("UP,DOWN:move RIGHT:play LEFT:back");
+					print_status("<LIST       PLAY>");
 				}
 				break;
 		}
 	}
+
+	werase(ui.win);
+}
+
+static void
+update_ctv()
+{
+	int rc;
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX-1, "%s/src/ctv", getenv("HOME"));
+
+	print_status("updating");
+	sleep(2);
+	rc = chdir(path);
+	if (rc != 0) {
+		logi("cannot chdir to %s. err: %s", path, strerror(errno));
+		print_status("cannot go to the source directory");
+		sleep(2);
+		return;
+	}
+
+	endwin();
+
+	rc = system("git pull");
+	logi("git pull: %d", rc);
+	rc = system("touch main.c");
+	logi("touch: %d", rc);
+	rc = system("make -C ~/b/ctvb");
+	logi("make: %d", rc);
+
+	snprintf(path, PATH_MAX-1, "%s/b/ctvb", getenv("HOME"));
+	rc = chdir(path);
+	logi("chdir: %d", rc);
+
+	snprintf(path, PATH_MAX-1, "%s/b/ctvb", getenv("HOME"));
+
+	if (rc == 0)
+		execl(path, NULL);
+}
+
+static void
+menu_loop()
+{
+	while (true) {
+		draw_menu();
+		wrefresh(ui.win);
+
+		int ch = joystick_getch();
+
+		switch (ch) {
+			case 'q':
+				exit(0);
+			case -1:
+				on_idle();
+				break;
+			case 'B':
+			case KEY_DOWN:
+			case 's':
+				menu.sel++;
+				if (menu.sel >= menu.count)
+					menu.sel = 0;
+				break;
+			case 'A':
+			case KEY_UP:
+			case 'w':
+				menu.sel--;
+				if (menu.sel < 0)
+					menu.sel = menu.count - 1;
+				break;
+			case 'C':
+			case KEY_RIGHT:
+			case 'd':
+				if (menu.items[menu.sel].id == MI_CAMERA) {
+					camera_enabled = !camera_enabled;
+				} else if (menu.items[menu.sel].id == MI_UPDATER) {
+					update_ctv();
+				} else if (menu.items[menu.sel].id == MI_ETVNET) {
+					werase(ui.win);
+					etvnet_loop();
+				}
+				break;
+		}
+	}
+}
+
+int
+main(int argc, char **argv)
+{
+	init(argc, argv);
+
+	if (activate_box) {
+		activate_tv_box();
+		return 0;
+	}
+
+	log_open("ctv.log");
+	logi("=======================================");
+
+	joystick_init();
+	init_ui(&ui);
+	status_init(ui.win, ui.height - 2);
+	atexit(exit_handler);
+	timeout(0);
+
+	menu_loop();
 }
