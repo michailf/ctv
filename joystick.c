@@ -204,7 +204,7 @@ joystick_init()
 		return;
 	}
 
-	for (i = 0; i < MAX_PINS; i++) {
+	for (i = 0; i < MAX_PINS*5; i++) {
 		last_res = init_pins();
 		if (last_res)
 			break;
