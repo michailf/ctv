@@ -180,7 +180,7 @@ joystick_init()
 		fdset[i].fd = fds[i];
 		fdset[i].events = POLLPRI|POLLERR;
 
-		usleep(20000);
+		usleep(100000);
 	}
 
 	inited = true;
