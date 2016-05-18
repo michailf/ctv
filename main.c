@@ -498,7 +498,7 @@ load_selections()
 static void
 turnoff_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -o 2>/dev/null 2>&1";
+	const char *cmd = "/opt/vc/bin/tvservice -o > /dev/null 2>&1";
 	logi("turning off monitor");
 	int rc = system(cmd);
 	if (rc != 0)
@@ -510,7 +510,7 @@ turnoff_monitor()
 static void
 turnon_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -p 2>/dev/null 2>&1 ; setterm --reset";
+	const char *cmd = "/opt/vc/bin/tvservice -p > /dev/null 2>&1; setterm --reset";
 	logi("turning on monitor");
 	int rc = system(cmd);
 	if (rc != 0)

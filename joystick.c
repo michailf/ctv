@@ -184,7 +184,7 @@ init_pins()
 		fdset[i].fd = fds[i];
 		fdset[i].events = POLLPRI|POLLERR;
 
-		usleep(20000);
+		usleep(100000);
 	}
 
 	return true;
@@ -204,7 +204,7 @@ joystick_init()
 		return;
 	}
 
-	for (i = 0; i < MAX_PINS; i++) {
+	for (i = 0; i < MAX_PINS*5; i++) {
 		last_res = init_pins();
 		if (last_res)
 			break;
