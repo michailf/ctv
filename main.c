@@ -498,7 +498,7 @@ load_selections()
 static void
 turnoff_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -o";
+	const char *cmd = "/opt/vc/bin/tvservice -o 2>/dev/null 2>&1";
 	logi("turning off monitor");
 	int rc = system(cmd);
 	if (rc != 0)
@@ -510,7 +510,7 @@ turnoff_monitor()
 static void
 turnon_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -p; fbset -accel true; fbset -accel false";
+	const char *cmd = "/opt/vc/bin/tvservice -p 2>/dev/null 2>&1 ; setterm --reset";
 	logi("turning on monitor");
 	int rc = system(cmd);
 	if (rc != 0)
@@ -573,6 +573,7 @@ etvnet_loop()
 		switch (ch) {
 			case -1:
 				on_idle();
+				werase(ui.win);
 				break;
 			case 'q': case 'Q':
 				quit = 1;
