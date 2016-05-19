@@ -232,7 +232,7 @@ set_lowest_bitrate(json_object *files, struct movie_entry *e)
 			has_mp4 = true;
 			break;
 		}
-		else if (strcmp(format, "wmv") == 0 && bitrate == 250) {
+		else if (strcmp(format, "wmv") == 0 && bitrate == 600) {
 			has_wmv = true;
 		}
 	}
@@ -242,7 +242,7 @@ set_lowest_bitrate(json_object *files, struct movie_entry *e)
 		e->bitrate = 400;
 	} else if (has_wmv) {
 		e->format = SF_WMV;
-		e->bitrate = 250;
+		e->bitrate = 600;
 	}
 }
 

@@ -184,6 +184,7 @@ enum menu_id {
 	MI_UPDATE,
 	MI_CLEAN,
 	MI_REDRAW,
+	MI_SHUTDOWN,
 	MI_REBOOT
 };
 
@@ -206,6 +207,7 @@ static struct menu_entry menu_items[] = {
 	{ MI_UPDATE, "update" },
 	{ MI_CLEAN, "clean" },
 	{ MI_REDRAW, "redraw" },
+	{ MI_SHUTDOWN, "shutdown" },
 	{ MI_REBOOT, "reboot" }
 };
 
@@ -652,6 +654,16 @@ menu_action()
 	case MI_REDRAW:
 		refresh();
 		break;
+	case MI_SHUTDOWN:
+		print_status("SHUTDOWN>");
+		ch = joystick_getch();
+		if (ch == KEY_RIGHT || ch == 'C') {
+			rc = system("sudo shutdown -h now");
+			logi("shutdown: %d", errno);
+			exit(1);
+		}
+		print_status("");
+		break;		
 	case MI_REBOOT:
 		print_status("REBOOT>");
 		ch = joystick_getch();
