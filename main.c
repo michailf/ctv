@@ -404,9 +404,10 @@ play_movie()
 	if (etvnet_errno != 0)
 		statusf("part %d: %s", e->sel, etvnet_error());
 
-	char *url = etvnet_get_stream_url(child->id, e->format, e->bitrate);
+	char *url = etvnet_get_stream_url(child->id, child->format, child->bitrate);
 	if (etvnet_errno != 0)
 		statusf("play_movie[%d]: %s", e->sel, etvnet_error());
+	logi("id: %d, url: %s", child->id, url);
 	print_status("Playing movie...");
 	run_player(url);
 	free(child);
