@@ -6,6 +6,7 @@
 #include <json-c/json.h>
 #include <sys/stat.h>
 #include "common/net.h"
+#include "common/log.h"
 #include "common/fs.h"
 #include "api.h"
 
@@ -265,6 +266,8 @@ create_movie(json_object *obj)
 	if (jres)
 		set_lowest_bitrate(files, e);
 
+	logi("id: %d, name: %s, format: %d, bitrate: %d", e->id, e->name, e->format, e->bitrate);
+
 	return e;
 }
 
@@ -437,9 +440,17 @@ etvnet_get_stream_url(int object_id, enum stream_format format, int bitrate)
 	const char *format_ext = (format == SF_MP4) ? "mp4" : "wmv";
 
 	etvnet_errno = 0;
-	snprintf(url, 499, "%svideo/media/%d/watch.json?format=%s&protocol=hls&bitrate=%d",
-		 api_root, object_id, format_ext, bitrate);
+
+	if (format == SF_MP4) {
+		snprintf(url, 499, "%svideo/media/%d/watch.json?format=%s&protocol=hls&bitrate=%d",
+			 api_root, object_id, format_ext, bitrate);
+	} else {
+		snprintf(url, 499, "%svideo/media/%d/watch.json?format=%s&bitrate=%d",
+			 api_root, object_id, format_ext, bitrate);
+	}
+
 	snprintf(name, 99, "stream-%d", object_id);
+	logi("fetch %s to %s", url, name);
 
 	root = get_cached(url, name);
 	if (etvnet_errno != 0)
@@ -479,6 +490,7 @@ etvnet_get_movie(int container_id, int idx)
 		 api_root, container_id, page);
 
 	snprintf(name, 99, "child-%d-%d", container_id, idx);
+	logi("fetch %s to %s", url, name);
 
 	root = get_cached(url, name);
 	if (etvnet_errno != 0)
