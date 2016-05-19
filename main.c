@@ -168,7 +168,8 @@ draw_list()
 static void
 print_status(const char *msg)
 {
-	logi(msg);
+	if (strlen(msg) > 0)
+		logi(msg);
 	wattron(ui.win, COLOR_PAIR(3));
 	mvwaddstr(ui.win, ui.height - 6, 2, "                                                                  ");
 	mvwaddstr(ui.win, ui.height - 6, 3, msg);
@@ -180,7 +181,10 @@ enum menu_id {
 	MI_ETVNET,
 	MI_CAMERA,
 	MI_ACTIVATION,
-	MI_UPDATER
+	MI_UPDATE,
+	MI_CLEAN,
+	MI_REDRAW,
+	MI_REBOOT
 };
 
 
@@ -199,11 +203,14 @@ static struct menu_entry menu_items[] = {
 	{ MI_ETVNET, "etv" },
 	{ MI_CAMERA, "camera" },
 	{ MI_ACTIVATION, "activate" },
-	{ MI_UPDATER, "update" }
+	{ MI_UPDATE, "update" },
+	{ MI_CLEAN, "clean" },
+	{ MI_REDRAW, "redraw" },
+	{ MI_REBOOT, "reboot" }
 };
 
 static struct menu_list menu = {
-	.count = 4,
+	.count = sizeof(menu_items) / sizeof(menu_items[0]),
 	.sel = 0,
 	.items = menu_items
 };
@@ -245,8 +252,8 @@ draw_menu()
 				str = "Enabled ";
 			else
 				str = "Disabled";
-		} else if (e->id == MI_UPDATER) {
-			snprintf(buf, 99, "%s (%s)", app_version, app_date);
+		} else if (e->id == MI_UPDATE) {
+			snprintf(buf, 99, "%s (%s %s)", app_version, __DATE__, __TIME__);
 			str = buf;
 		}
 
@@ -538,6 +545,8 @@ on_idle()
 	}
 	turnon_monitor();
 	sleep(5);
+	erase();
+	refresh();
 	idle_start = time(NULL);
 }
 
@@ -621,40 +630,38 @@ etvnet_loop()
 }
 
 static void
-update_ctv()
+menu_action()
 {
-	int rc;
-	char path[PATH_MAX];
-
-	snprintf(path, PATH_MAX-1, "%s/src/ctv", getenv("HOME"));
-
-	print_status("updating");
-	sleep(2);
-	rc = chdir(path);
-	if (rc != 0) {
-		logi("cannot chdir to %s. err: %s", path, strerror(errno));
-		print_status("cannot go to the source directory");
-		sleep(2);
-		return;
+	int ch, rc;
+	enum menu_id id = menu.items[menu.sel].id;
+	
+	switch (id) {
+	case MI_CAMERA:
+		camera_enabled = !camera_enabled;
+		break;
+	case MI_UPDATE:
+		exit(3);
+		break;
+	case MI_ETVNET:
+		werase(ui.win);
+		etvnet_loop();
+		break;
+	case MI_CLEAN:
+		erase();
+		break;
+	case MI_REDRAW:
+		refresh();
+		break;
+	case MI_REBOOT:
+		print_status("REBOOT>");
+		ch = joystick_getch();
+		if (ch == KEY_RIGHT || ch == 'C') {
+			rc = system("sudo reboot");
+			logi("reboot: %d", errno);
+		}
+		print_status("");
+		break;
 	}
-
-	endwin();
-
-	rc = system("git pull");
-	logi("git pull: %d", rc);
-	rc = system("touch main.c");
-	logi("touch: %d", rc);
-	rc = system("make -C ~/b/ctvb");
-	logi("make: %d", rc);
-
-	snprintf(path, PATH_MAX-1, "%s/b/ctvb", getenv("HOME"));
-	rc = chdir(path);
-	logi("chdir: %d", rc);
-
-	snprintf(path, PATH_MAX-1, "%s/b/ctvb", getenv("HOME"));
-
-	if (rc == 0)
-		execl(path, NULL);
 }
 
 static void
@@ -689,14 +696,7 @@ menu_loop()
 			case 'C':
 			case KEY_RIGHT:
 			case 'd':
-				if (menu.items[menu.sel].id == MI_CAMERA) {
-					camera_enabled = !camera_enabled;
-				} else if (menu.items[menu.sel].id == MI_UPDATER) {
-					update_ctv();
-				} else if (menu.items[menu.sel].id == MI_ETVNET) {
-					werase(ui.win);
-					etvnet_loop();
-				}
+				menu_action();
 				break;
 		}
 	}
@@ -722,4 +722,6 @@ main(int argc, char **argv)
 	timeout(0);
 
 	menu_loop();
+	
+	return 0;
 }
