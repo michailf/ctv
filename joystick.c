@@ -228,8 +228,10 @@ wait_event(int timeout, int *key)
 	}
 
 	rc = poll(fdset, FD_SIZE, timeout);
-	if (rc < 0)
-		logfatal("poll() failed: %d, %s", rc, strerror(rc));
+	if (rc < 0) {
+		logwarn("poll() failed: %d, %s", rc, strerror(rc));
+		sleep(5);
+	}
 
 	for (i = 0; i < FD_SIZE && rc > 0; i++) {
 		if (fdset[i].revents == 0)

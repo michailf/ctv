@@ -15,7 +15,15 @@ add_subdirectory(../../w/common bin)
 
 gen_version_c()
 
-list(APPEND SOURCES main.c api.c api.h version.c version.h util.c util.h joystick.c joystick.h)
+list(APPEND SOURCES
+	main.c
+	provider.c provider.h
+	etvnet.c etvnet.h
+	smithsonian.c smithsonian.h
+	version.c version.h
+	util.c util.h
+	joystick.c joystick.h
+)
 list(APPEND LIBS ${ncurses_LIBRARY} ${json_LIBRARY} ${curl_LIBRARY} svc)
 
 add_executable(ctv ${SOURCES})

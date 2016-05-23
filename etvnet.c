@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +7,8 @@
 #include "common/net.h"
 #include "common/log.h"
 #include "common/fs.h"
-#include "api.h"
+#include "provider.h"
+#include "etvnet.h"
 
 static const char client_id[] = "a332b9d61df7254dffdc81a260373f25592c94c9";
 static const char client_secret[] = "744a52aff20ec13f53bcfd705fc4b79195265497";
@@ -30,14 +30,15 @@ static char *cache_path;
 static char *access_token;
 static char *refresh_token;
 static char last_error[4096];
+static struct provider *provider;
 
-const char *
+static void init();
+
+static const char *
 etvnet_error()
 {
-	return (etvnet_errno > 0) ? last_error : NULL;
+	return (provider->error_number > 0) ? last_error : NULL;
 }
-
-int etvnet_errno = 0;
 
 static int
 fetch(const char *url, const char *fname)
@@ -87,8 +88,8 @@ get_int(json_object *obj, const char *name)
 	return json_object_get_int(child_obj);
 }
 
-void
-etvnet_authorize(const char *device_code)
+static void
+authorize(const char *device_code)
 {
 	char url[1000];
 	char fname[PATH_MAX];
@@ -100,7 +101,7 @@ etvnet_authorize(const char *device_code)
 	if (!exists(fname)) {
 		rc = mkdir(fname, 0700);
 		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
@@ -108,7 +109,7 @@ etvnet_authorize(const char *device_code)
 	if (!exists(fname)) {
 		rc = mkdir(fname, 0700);
 		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
@@ -137,11 +138,11 @@ etvnet_authorize(const char *device_code)
 	rc = fetch(url, fname);
 
 	if (rc != 0) {
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
-	etvnet_init();
+	init();
 }
 
 static json_object *
@@ -161,7 +162,7 @@ get_cached(const char *url, const char *name)
 	}
 
 	if (rc != 0) {
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
@@ -172,7 +173,7 @@ get_cached(const char *url, const char *name)
 		return root;
 
 	sleep(2);
-	etvnet_authorize(NULL);
+	authorize(NULL);
 	get_full_url(url, full_url);
 	rc = fetch(url, fname);
 
@@ -181,21 +182,21 @@ get_cached(const char *url, const char *name)
 
 	if (rc != 0 || root == NULL) {
 		sprintf(last_error, "cannot load %s. rc: %d", fname, rc);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
 	if (error != NULL) {
 		remove(fname);
 		sprintf(last_error, "api error: %s", error);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
 	return root;
 }
 
-json_object *
+static json_object *
 fetch_favorite(int folder_id)
 {
 	char url[500];
@@ -280,14 +281,14 @@ get_data(json_object *root, const char *name)
 	jres = json_object_object_get_ex(root, "data", &data);
 	if (jres == FALSE) {
 		sprintf(last_error, "Cannot get data for %s", name);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return  NULL;
 	}
 
 	jres = json_object_object_get_ex(data, name, &obj);
 	if (jres == FALSE) {
 		sprintf(last_error, "Cannot get data/%s", name);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
@@ -305,7 +306,7 @@ parse_favorites(json_object *root)
 	int status = get_int(root, "status_code");
 	if (status != 200) {
 		sprintf(last_error, "invalid status %d", status);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
@@ -317,7 +318,7 @@ parse_favorites(json_object *root)
 		bookmark = json_object_array_get_idx(bookmarks, i);
 		if (bookmark == NULL) {
 			sprintf(last_error, "Cannot get bookmark[%d]", i);
-			etvnet_errno = 1;
+			provider->error_number = 1;
 			return NULL;
 		}
 
@@ -328,18 +329,18 @@ parse_favorites(json_object *root)
 	return list;
 }
 
-struct movie_list *
-etvnet_load_favorites()
+static struct movie_list *
+load()
 {
 	char url[500];
 	json_object *root, *folders, *folder;
 	int i;
 
-	etvnet_errno = 0;
+	provider->error_number = 0;
 	snprintf(url, 499, "%s/video/bookmarks/folders.json?per_page=20", api_root);
 
 	root = get_cached(url, "favorites");
-	if (etvnet_errno != 0)
+	if (provider->error_number != 0)
 		return NULL;
 
 	folders = get_data(root, "folders");
@@ -350,7 +351,7 @@ etvnet_load_favorites()
 		folder = json_object_array_get_idx(folders, i);
 		if (folder == NULL) {
 			sprintf(last_error, "Cannot get folder[%d]", i);
-			etvnet_errno = 1;
+			provider->error_number = 1;
 			return  NULL;
 		}
 
@@ -363,12 +364,12 @@ etvnet_load_favorites()
 
 	if (folder_id == 0) {
 		sprintf(last_error, "cannot get my favorite folder");
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
 	root = fetch_favorite(folder_id);
-	if (etvnet_errno != 0)
+	if (provider->error_number != 0)
 		return NULL;
 
 	struct movie_list *list = parse_favorites(root);
@@ -376,8 +377,8 @@ etvnet_load_favorites()
 	return list;
 }
 
-void
-etvnet_init()
+static void
+init()
 {
 	char fname[PATH_MAX];
 	const char *v;
@@ -422,51 +423,51 @@ etvnet_init()
 	refresh_token = strdup(v);
 
 	last_error[0] = 0;
-	etvnet_errno = 0;
+	provider->error_number = 0;
 	return;
 
 not_activated:
-	etvnet_errno = 1;
+	provider->error_number = 1;
 }
 
-char *
-etvnet_get_stream_url(int object_id, enum stream_format format, int bitrate)
+static char *
+get_stream_url(struct movie_entry *e)
 {
 	char url[1000];
 	char name[100];
 	json_object *root;
 	json_object *obj;
 	json_bool jres;
-	const char *format_ext = (format == SF_MP4) ? "mp4" : "wmv";
+	const char *format_ext = (e->format == SF_MP4) ? "mp4" : "wmv";
 
-	etvnet_errno = 0;
+	provider->error_number = 0;
 
-	if (format == SF_MP4) {
+	if (e->format == SF_MP4) {
 		snprintf(url, 499, "%svideo/media/%d/watch.json?format=%s&protocol=hls&bitrate=%d",
-			 api_root, object_id, format_ext, bitrate);
+			 api_root, e->id, format_ext, e->bitrate);
 	} else {
 		snprintf(url, 499, "%svideo/media/%d/watch.json?format=%s&bitrate=%d",
-			 api_root, object_id, format_ext, bitrate);
+			 api_root, e->id, format_ext, e->bitrate);
 	}
 
-	snprintf(name, 99, "stream-%d", object_id);
+	snprintf(name, 99, "stream-%d", e->id);
 	logi("fetch %s to %s", url, name);
 
 	root = get_cached(url, name);
-	if (etvnet_errno != 0)
+	if (provider->error_number != 0)
 		return NULL;
 
 	int status = get_int(root, "status_code");
 	if (status != 200) {
 		sprintf(last_error, "get stream status: %d", status);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
 	jres = json_object_object_get_ex(root, "data", &obj);
 	if (jres == FALSE) {
 		sprintf(last_error, "Cannot get stream data");
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return  NULL;
 	}
 
@@ -475,33 +476,34 @@ etvnet_get_stream_url(int object_id, enum stream_format format, int bitrate)
 	return stream_url;
 }
 
-struct movie_entry *
-etvnet_get_movie(int container_id, int idx)
+static struct movie_entry *
+get_movie(int parent_id, int idx)
 {
 	char url[500];
 	char name[100];
 	json_object *root, *children, *child;
 
-	etvnet_errno = 0;
+	provider->error_number = 0;
 	int page = (idx / 20) + 1;
 	int pos_on_page = idx - (page - 1) * 20;
 
 	snprintf(url, 499, "%s/video/media/%d/children.json?page=%d&per_page=20&order_by=on_air",
-		 api_root, container_id, page);
+		 api_root, parent_id, page);
 
-	snprintf(name, 99, "child-%d-%d", container_id, idx);
+	snprintf(name, 99, "child-%d-%d", parent_id, idx);
 	logi("fetch %s to %s", url, name);
 
 	root = get_cached(url, name);
-	if (etvnet_errno != 0)
+	if (provider->error_number != 0) {
 		return NULL;
+	}
 
 	children = get_data(root, "children");
 	int children_count = json_object_array_length(children);
 
 	if (pos_on_page >= children_count) {
 		sprintf(last_error, "cannot get child by idx %d", idx);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return NULL;
 	}
 
@@ -511,8 +513,8 @@ etvnet_get_movie(int container_id, int idx)
 	return e;
 }
 
-void
-etvnet_get_activation_code(char **user_code, char **device_code)
+static void
+get_activation_code(char **user_code, char **device_code)
 {
 	char url[1000];
 	char fname[PATH_MAX];
@@ -526,7 +528,7 @@ etvnet_get_activation_code(char **user_code, char **device_code)
 	if (!exists(fname)) {
 		rc = mkdir(fname, 0700);
 		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
@@ -534,7 +536,7 @@ etvnet_get_activation_code(char **user_code, char **device_code)
 	if (!exists(fname)) {
 		rc = mkdir(fname, 0700);
 		sprintf(last_error, "cannot create dir %s. Error: %d", fname, rc);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
@@ -550,21 +552,21 @@ etvnet_get_activation_code(char **user_code, char **device_code)
 	rc = fetch(url, fname);
 	if (rc != 0) {
 		sprintf(last_error, "cannot get activation code. Error: %d", rc);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
 	root = json_object_from_file(fname);
 	if (root == NULL) {
 		sprintf(last_error, "cannot load %s", fname);
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
 	v = get_str(root, "device_code");
 	if (v == NULL ) {
 		sprintf(last_error, "no activation.device_code.");
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
@@ -573,10 +575,28 @@ etvnet_get_activation_code(char **user_code, char **device_code)
 	v = get_str(root, "user_code");
 	if (v == NULL ) {
 		sprintf(last_error, "no activation.user_code.");
-		etvnet_errno = 1;
+		provider->error_number = 1;
 		return;
 	}
 
-	etvnet_errno = 0;
+	provider->error_number = 0;
 	*user_code = strdup(v);
+}
+
+struct provider *
+etvnet_get_provider() {
+
+	provider = calloc(1, sizeof(struct provider));
+
+	init();
+
+	provider->name = strdup("etvnet");
+	provider->load = load;
+	provider->error = etvnet_error;
+	provider->get_activation_code = get_activation_code;
+	provider->authorize = authorize;
+	provider->get_movie = get_movie;
+	provider->get_stream_url = get_stream_url;
+
+	return provider;
 }

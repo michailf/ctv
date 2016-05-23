@@ -15,7 +15,9 @@
 #include "common/struct.h"
 #include "common/log.h"
 #include "version.h"
-#include "api.h"
+#include "provider.h"
+#include "etvnet.h"
+#include "smithsonian.h"
 #include "util.h"
 #include "joystick.h"
 
@@ -51,6 +53,8 @@ static bool activate_box = false;
 static char cache_dir[PATH_MAX];
 static char local_dir[PATH_MAX];
 static time_t idle_start = 0;
+static struct provider *provider; /* current provider */
+static struct movie_list *list;   /* current list of movies from provider */
 
 static void
 init(int argc, char **argv)
@@ -88,8 +92,6 @@ init(int argc, char **argv)
 	idle_start = time(NULL);
 }
 
-struct movie_list *list; /* read from my favorites */
-
 enum scroll_mode {
 	eNames,
 	eNumbers
@@ -117,7 +119,7 @@ init_ui(struct ui *ui)
 	refresh();
 	noecho();
 	cbreak();
-	ui->win = newwin(ui->height - 4, 70, 2, 1);
+	ui->win = newwin(ui->height - 4, 76, 2, 1);
 	box(ui->win, 0, 0);
 	curs_set(0);
 }
@@ -143,25 +145,25 @@ draw_list()
 		mvwaddstr(ui.win, i+2, 4, e->name);
 
 		if (i == list->sel && ui.scroll == eNames) {
-			mvwaddstr(ui.win, i+2, 37, "]");
+			mvwaddstr(ui.win, i+2, 45, "] ");
 			wattroff(ui.win, COLOR_PAIR(1));
 		} else {
-			mvwaddstr(ui.win, i+2, 37, " ");
+			mvwaddstr(ui.win, i+2, 45, "  ");
 		}
 
-		mvwaddstr(ui.win, i+2, 39, "      ");
+//		mvwaddstr(ui.win, i+2, 39, "      ");
 
 		if (i == list->sel && ui.scroll == eNumbers) {
 			wattron(ui.win, COLOR_PAIR(1));
-			mvwprintw(ui.win, i+2, 39, "%d/%d     ", e->sel + 1, e->children_count);
-			mvwaddstr(ui.win, i+2, 37, "[");
-			mvwaddstr(ui.win, i+2, 45, "]");
+			mvwprintw(ui.win, i+2, 47, "%d/%d     ", e->sel + 1, e->children_count);
+			mvwaddstr(ui.win, i+2, 45, "[");
+			mvwaddstr(ui.win, i+2, 52, "]");
 			wattroff(ui.win, COLOR_PAIR(1));
 		} else {
-			mvwprintw(ui.win, i+2, 39, "%d/%d     ", e->sel + 1, e->children_count);
+			mvwprintw(ui.win, i+2, 47, "%d/%d     ", e->sel + 1, e->children_count);
 		}
 
-		mvwaddstr(ui.win, i+2, 47, e->on_air);
+		mvwaddstr(ui.win, i+2, 54, e->on_air);
 	}
 }
 
@@ -179,6 +181,7 @@ print_status(const char *msg)
 
 enum menu_id {
 	MI_ETVNET,
+	MI_SMITHSONIAN,
 	MI_CAMERA,
 	MI_ACTIVATION,
 	MI_UPDATE,
@@ -201,9 +204,10 @@ struct menu_list {
 };
 
 static struct menu_entry menu_items[] = {
-	{ MI_ETVNET, "etv" },
+	{ MI_ETVNET, "etvnet" },
+	{ MI_SMITHSONIAN, "smithsonian" },
 	{ MI_CAMERA, "camera" },
-	{ MI_ACTIVATION, "activate" },
+	{ MI_ACTIVATION, "etvnet activate" },
 	{ MI_UPDATE, "update" },
 	{ MI_CLEAN, "clean" },
 	{ MI_REDRAW, "redraw" },
@@ -238,13 +242,13 @@ draw_menu()
 		mvwaddstr(ui.win, i+2, 4, e->name);
 
 		if (i == menu.sel) {
-			mvwaddstr(ui.win, i+2, 14, "]");
+			mvwaddstr(ui.win, i+2, 20, "]");
 			wattroff(ui.win, COLOR_PAIR(1));
 		} else {
-			mvwaddstr(ui.win, i+2, 14, " ");
+			mvwaddstr(ui.win, i+2, 20, " ");
 		}
 
-		mvwaddstr(ui.win, i+2, 16, "  ");
+		mvwaddstr(ui.win, i+2, 22, "  ");
 
 		const char *str = "";
 		char buf[100];
@@ -259,7 +263,7 @@ draw_menu()
 			str = buf;
 		}
 
-		mvwaddstr(ui.win, i+2, 18, str);
+		mvwaddstr(ui.win, i+2, 24, str);
 	}
 
 
@@ -394,21 +398,24 @@ play_movie()
 
 	struct movie_entry *e = list->items[list->sel];
 	if (e->children_count == 0) {
-		char *url = etvnet_get_stream_url(e->id, e->format, e->bitrate);
-		if (etvnet_errno != 0)
-			statusf("play_movie: %s", etvnet_error());
+		char *url = e->stream_url;
+		if (url == NULL) {
+			url = provider->get_stream_url(e);
+			if (provider->error_number != 0)
+				statusf("no stream url: %s", provider->error());
+		}
 		run_player(url);
 		free(url);
 		return;
 	}
 
-	struct movie_entry *child = etvnet_get_movie(e->id, e->sel);
-	if (etvnet_errno != 0)
-		statusf("part %d: %s", e->sel, etvnet_error());
+	struct movie_entry *child = provider->get_movie(e->id, e->sel);
+	if (provider->error_number != 0)
+		statusf("part %d: %s", e->sel, provider->error());
 
-	char *url = etvnet_get_stream_url(child->id, child->format, child->bitrate);
-	if (etvnet_errno != 0)
-		statusf("play_movie[%d]: %s", e->sel, etvnet_error());
+	char *url = provider->get_stream_url(e);
+	if (provider->error_number != 0)
+		statusf("play_movie[%d]: %s", e->sel, provider->error());
 	logi("id: %d, url: %s", child->id, url);
 	print_status("Playing movie...");
 	run_player(url);
@@ -422,9 +429,9 @@ activate_tv_box()
 	char *user_code;
 	char *device_code;
 
-	etvnet_get_activation_code(&user_code, &device_code);
-	if (etvnet_errno != 0)
-		err(1, "cannot get activation code: %s", etvnet_error());
+	provider->get_activation_code(&user_code, &device_code);
+	if (provider->error_number != 0)
+		err(1, "cannot get activation code: %s", provider->error());
 
 	printf("Enter activation code on etvnet.com/Активация STB:\n    %s\n", user_code);
 	printf("After entering the code hit ENTER on this box.\n");
@@ -435,9 +442,9 @@ activate_tv_box()
 		exit(1);
 	}
 
-	etvnet_authorize(device_code);
-	if (etvnet_errno != 0)
-		err(1, "%s", etvnet_error());
+	provider->authorize(device_code);
+	if (provider->error_number != 0)
+		err(1, "%s", provider->error());
 
 	printf("Activated successfully.\n");
 	exit(0);
@@ -554,23 +561,31 @@ on_idle()
 }
 
 static void
-etvnet_loop()
+provider_loop(enum menu_id provider_id)
 {
 	int quit = 0;
 
-	print_status("Connecting to etvnet.com");
-	etvnet_init();
-	if (etvnet_errno != 0)
-		statusf("%s", etvnet_error());
+	if (provider_id == MI_ETVNET) {
+		print_status("Connecting to etvnet.com");
+		provider = etvnet_get_provider();
 
-	print_status("Loading favorites");
-	list = etvnet_load_favorites();
-	if (etvnet_errno != 0)
-		statusf("%s", etvnet_error());
+	} else if (provider_id == MI_SMITHSONIAN) {
+		print_status("Connecting to smithsonian.com");
+		provider = smithsonian_get_provider();
+	}
+
+	if (provider->error_number != 0)
+		statusf("%s", provider->error());
+
+	print_status("Loading movie list");
+	list = provider->load();
+
+	if (provider->error_number != 0)
+		statusf("%s", provider->error());
 
 	load_selections();
 
-	print_status("<MENU SELECT_PART>");
+	print_status("<< MENU    SELECT_PART >>");
 
 	while (!quit) {
 		draw_list();
@@ -579,13 +594,9 @@ etvnet_loop()
 
 		int ch = joystick_getch();
 
-		if (ch != -1)
-			idle_start = time(NULL);
-
 		switch (ch) {
 			case -1:
 				on_idle();
-				werase(ui.win);
 				break;
 			case 'q': case 'Q':
 				quit = 1;
@@ -613,7 +624,7 @@ etvnet_loop()
 					quit = 1;
 				else if (ui.scroll == eNumbers) {
 					ui.scroll = eNames;
-					print_status("<MENU SELECT_PART>");
+					print_status("<< MENU    SELECT_PART >>");
 				}
 				break;
 			case 'd':
@@ -623,7 +634,7 @@ etvnet_loop()
 					play_movie();
 				else if (ui.scroll == eNames) {
 					ui.scroll = eNumbers;
-					print_status("<LIST       PLAY>");
+					print_status("<< LIST       PLAY >>");
 				}
 				break;
 		}
@@ -642,12 +653,19 @@ menu_action()
 	case MI_CAMERA:
 		camera_enabled = !camera_enabled;
 		break;
+	case MI_ACTIVATION:
+		activate_tv_box();
+		break;
 	case MI_UPDATE:
 		exit(3);
 		break;
 	case MI_ETVNET:
 		werase(ui.win);
-		etvnet_loop();
+		provider_loop(MI_ETVNET);
+		break;
+	case MI_SMITHSONIAN:
+		werase(ui.win);
+		provider_loop(MI_SMITHSONIAN);
 		break;
 	case MI_CLEAN:
 		erase();
