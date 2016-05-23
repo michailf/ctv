@@ -1,26 +1,27 @@
-//
-//  channel.c
-//  ctv
-//
-//  Created by Serge Voilokov on 5/20/16.
-//
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <limits.h>
 #include "provider.h"
+#include "common/log.h"
 
 static struct provider *provider;
 
 static struct movie_list *
 load(struct provider *p)
 {
-	FILE *f = fopen("/Users/svoilokov/src/xtree/ctests/smith.txt", "rt");
-	struct movie_list *list = calloc(1, sizeof(struct movie_list));
+	char s[2000], *ptr, *title, *url, fname[PATH_MAX];
+	int id = 1, rc;
 
-	char s[2000], *ptr, *title, *url;
-	int id = 1;
+	snprintf(fname, PATH_MAX-1, "%s/.cache/etvcc/smithsonian.txt", getenv("HOME"));
+	snprintf(s, 1999, "python %s/src/ctv/smithsonianchannel.py > %s", getenv("HOME"), fname);
+
+	rc = system(s);
+	if (rc != 0)
+		logfatal("cannot refresh smithsonian channel list");
+
+	FILE *f = fopen(fname, "rt");
+	struct movie_list *list = calloc(1, sizeof(struct movie_list));
 
 	while (!feof(f)) {
 		ptr = fgets(s, 1999, f);
