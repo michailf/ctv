@@ -255,13 +255,36 @@ wait_event(int timeout, int *key)
 int debug = 0;
 
 int
+map_key(int key)
+{
+	switch (key) {
+		case 'B':
+		case 's':
+			return KEY_DOWN;
+		case 'A':
+		case 'w':
+			return KEY_UP;
+		case 'C':
+		case 'd':
+			return KEY_RIGHT;
+		case 'D':
+		case 'a':
+			return KEY_LEFT;
+		default:
+			return key;
+	}
+}
+
+int
 joystick_getch()
 {
 	int pin1, key1 = -1;
 
-	if (last_pin != MAX_PINS) {
+	uint64_t now = get_ms();
+
+	if (last_pin != MAX_PINS && now - last_press < 2000) {
 		wait_event(10, &key1);
-		uint64_t now = get_ms();
+		now = get_ms();
 		if (debug)
 			logi("now: %llu last: %llu\r", now, last_press);
 
@@ -281,5 +304,5 @@ joystick_getch()
 	last_press = get_ms();
 	last_pin = pin1;
 
-	return key1;
+	return map_key(key1);
 }

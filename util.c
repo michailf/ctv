@@ -5,12 +5,14 @@
 
 static WINDOW *log_win;
 static int log_row;
+static bool log_dumb = false;
 
 void
-status_init(WINDOW *w, int row)
+status_init(WINDOW *w, int row, bool dumb_term)
 {
 	log_win = w;
 	log_row = row;
+	log_dumb = dumb_term;
 }
 
 void
@@ -21,12 +23,16 @@ statusf(const char *fmt, ...)
 	va_start(args, fmt);
 	va_copy(cp, args);
 
-	wattron(log_win, COLOR_PAIR(2));
-	mvwaddstr(log_win, log_row, 2, "                                                                  ");
-	wmove(log_win, log_row, 3);
-	vwprintw(log_win, fmt, args);
-	wattroff(log_win, COLOR_PAIR(2));
-	wrefresh(log_win);
+	if (log_dumb) {
+		vprintf(fmt, args);
+	} else {
+		wattron(log_win, COLOR_PAIR(2));
+		mvwaddstr(log_win, log_row, 2, "                                                                  ");
+		wmove(log_win, log_row, 3);
+		vwprintw(log_win, fmt, args);
+		wattroff(log_win, COLOR_PAIR(2));
+		wrefresh(log_win);
+	}
 
 	va_end (args);
 

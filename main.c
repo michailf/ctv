@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <locale.h>
+#include <termios.h>
 #include "common/struct.h"
 #include "common/log.h"
 #include "version.h"
@@ -49,12 +50,14 @@ version()
 	printf("date %s\n", app_date);
 }
 
+static bool dumb_term = false;
 static bool activate_box = false;
 static char cache_dir[PATH_MAX];
 static char local_dir[PATH_MAX];
 static time_t idle_start = 0;
 static struct provider *provider; /* current provider */
 static struct movie_list *list;   /* current list of movies from provider */
+static struct termios orig_termios;
 
 static void
 init(int argc, char **argv)
@@ -90,6 +93,7 @@ init(int argc, char **argv)
 	mkdir(local_dir, 0700);
 
 	idle_start = time(NULL);
+	dumb_term = (getenv("TERM") == NULL);
 }
 
 enum scroll_mode {
@@ -117,8 +121,6 @@ init_ui(struct ui *ui)
 	init_pair(2, COLOR_WHITE, COLOR_RED);
 	init_pair(3, COLOR_YELLOW, COLOR_BLUE);
 	refresh();
-	noecho();
-	cbreak();
 	ui->win = newwin(ui->height - 4, 76, 2, 1);
 	box(ui->win, 0, 0);
 	curs_set(0);
@@ -127,8 +129,37 @@ init_ui(struct ui *ui)
 struct ui ui;
 
 static void
+print_list()
+{
+	int i;
+	printf("=====================\n");
+	for (i = 0; i < list->count; i++) {
+		const char *sel = " ";
+		struct movie_entry *e = list->items[i];
+
+		if (i == list->sel)
+			sel = "*";
+
+		printf("%s %s", sel, e->name);
+
+		if (i == list->sel && ui.scroll == eNumbers) {
+			printf(" * ");
+		} else {
+			printf("   ");
+
+		}
+		printf("%d/%d\n", e->sel + 1, e->children_count);
+	}
+}
+
+static void
 draw_list()
 {
+	if (dumb_term) {
+		print_list();
+		return;
+	}
+
 	box(ui.win, 0, 0);
 
 	int i;
@@ -172,11 +203,15 @@ print_status(const char *msg)
 {
 	if (strlen(msg) > 0)
 		logi(msg);
-	wattron(ui.win, COLOR_PAIR(3));
-	mvwaddstr(ui.win, ui.height - 6, 2, "                                                                  ");
-	mvwaddstr(ui.win, ui.height - 6, 3, msg);
-	wattroff(ui.win, COLOR_PAIR(3));
-	wrefresh(ui.win);
+	if (dumb_term) {
+		printf("status: %s\n", msg);
+	} else {
+		wattron(ui.win, COLOR_PAIR(3));
+		mvwaddstr(ui.win, ui.height - 6, 2, "                                                                  ");
+		mvwaddstr(ui.win, ui.height - 6, 3, msg);
+		wattroff(ui.win, COLOR_PAIR(3));
+		wrefresh(ui.win);
+	}
 }
 
 enum menu_id {
@@ -280,6 +315,20 @@ draw_menu()
 }
 
 static void
+print_menu()
+{
+	int i;
+	printf("=====================\n");
+	for (i = 0; i < menu.count; i++) {
+		struct menu_entry *e = &menu.items[i];
+		char *sel = " ";
+		if (menu.sel == i)
+			sel = "*";
+		printf("%s  %s\n", sel, e->name);
+	}
+}
+
+static void
 next_movie()
 {
 	struct movie_entry *e = list->items[list->sel];
@@ -316,8 +365,13 @@ prev_number()
 static void
 exit_handler()
 {
-	flushinp();
-	endwin();
+	if (dumb_term) {
+		tcsetattr(STDIN_FILENO,TCSAFLUSH, &orig_termios);
+	} else {
+		flushinp();
+		endwin();
+	}
+
 	logi("stopped");
 	system("tail -100 ctv.log");
 }
@@ -451,14 +505,14 @@ activate_tv_box()
 }
 
 static void
-save_selections()
+save_selections(const char *name)
 {
 	int i;
 	char fname[PATH_MAX];
 	FILE *f;
 	struct movie_entry *e;
 
-	snprintf(fname, PATH_MAX-1, "%sselections.txt", local_dir);
+	snprintf(fname, PATH_MAX-1, "%sselections-%s.txt", local_dir, name);
 	f = fopen(fname, "wt");
 	if (f == NULL)
 		statusf("cannot save selections");
@@ -473,14 +527,14 @@ save_selections()
 }
 
 static void
-load_selections()
+load_selections(const char *name)
 {
 	int i, n, v, id, j;
 	char fname[PATH_MAX];
 	FILE *f;
 	struct movie_entry *e;
 
-	snprintf(fname, PATH_MAX-1, "%sselections.txt", local_dir);
+	snprintf(fname, PATH_MAX-1, "%sselections-%s.txt", local_dir, name);
 	f = fopen(fname, "rt");
 	if (f == NULL)
 		return;
@@ -583,13 +637,13 @@ provider_loop(enum menu_id provider_id)
 	if (provider->error_number != 0)
 		statusf("%s", provider->error());
 
-	load_selections();
+	load_selections(provider->name);
 
 	print_status("<< MENU    SELECT_PART >>");
 
 	while (!quit) {
 		draw_list();
-		save_selections();
+		save_selections(provider->name);
 		wrefresh(ui.win);
 
 		int ch = joystick_getch();
@@ -601,24 +655,18 @@ provider_loop(enum menu_id provider_id)
 			case 'q': case 'Q':
 				quit = 1;
 				break;
-			case 'w':
-			case 'A':
 			case KEY_UP:
 				if (ui.scroll == eNumbers)
 					prev_movie();
 				else
 					prev_number();
 				break;
-			case 's':
-			case 'B':
 			case KEY_DOWN:
 				if (ui.scroll == eNumbers)
 					next_movie();
 				else
 					next_number();
 				break;
-			case 'a':
-			case 'D':
 			case KEY_LEFT:
 				if (ui.scroll == eNames)
 					quit = 1;
@@ -627,8 +675,6 @@ provider_loop(enum menu_id provider_id)
 					print_status("<< MENU    SELECT_PART >>");
 				}
 				break;
-			case 'd':
-			case 'C':
 			case KEY_RIGHT:
 				if (ui.scroll == eNumbers)
 					play_movie();
@@ -699,8 +745,12 @@ static void
 menu_loop()
 {
 	while (true) {
-		draw_menu();
-		wrefresh(ui.win);
+		if (dumb_term) {
+			print_menu();
+		} else {
+			draw_menu();
+			wrefresh(ui.win);
+		}
 
 		int ch = joystick_getch();
 
@@ -710,23 +760,17 @@ menu_loop()
 			case -1:
 				on_idle();
 				break;
-			case 'B':
 			case KEY_DOWN:
-			case 's':
 				menu.sel++;
 				if (menu.sel >= menu.count)
 					menu.sel = 0;
 				break;
-			case 'A':
 			case KEY_UP:
-			case 'w':
 				menu.sel--;
 				if (menu.sel < 0)
 					menu.sel = menu.count - 1;
 				break;
-			case 'C':
 			case KEY_RIGHT:
-			case 'd':
 				menu_action();
 				break;
 		}
@@ -747,11 +791,25 @@ main(int argc, char **argv)
 	logi("=======================================");
 
 	joystick_init();
-	init_ui(&ui);
-	status_init(ui.win, ui.height - 2);
-	atexit(exit_handler);
-	timeout(0);
 
+	if (dumb_term) {
+		tcgetattr(STDIN_FILENO, &orig_termios);
+		struct termios raw;
+		raw = orig_termios;
+		raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+		raw.c_oflag &= ~(OPOST);
+		raw.c_cflag |= (CS8);
+		raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+		tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+	} else {
+		init_ui(&ui);
+		atexit(exit_handler);
+		timeout(0);
+		noecho();
+		cbreak();
+	}
+
+	status_init(ui.win, ui.height - 2, dumb_term);
 	menu_loop();
 	
 	return 0;
