@@ -382,10 +382,14 @@ run_player(const char *url)
 	char omxcmd[2000];
 	int player_started = 0, rc, ch, quit = 0, first = 1;
 
-	if (strcmp("/home/pi", getenv("HOME")) == 0)
-		snprintf(omxcmd, 1999, "omxplayer --live --win 0,0,1080,608 --key-config /home/pi/bin/omxp_keys.txt '%s' >/dev/null 2>&1 &", url);
-	else
+	if (strcmp("/home/pi", getenv("HOME")) == 0) {
+		snprintf(omxcmd, 1999,
+			 "omxplayer --live "
+			 "--key-config /home/pi/bin/omxp_keys.txt '%s'"
+			 ">/dev/null 2>&1 &", url);
+	} else {
 		snprintf(omxcmd, 1999, "mplayer -msglevel all=0 -cache-min 64 '%s' 2>/dev/null 1>&2", url);
+	}
 
 	logi("starting player: %s", omxcmd);
 	ch = KEY_RIGHT;
@@ -581,7 +585,7 @@ turnoff_monitor()
 static void
 turnon_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -p > /dev/null 2>&1; setterm --reset";
+	const char *cmd = "/opt/vc/bin/tvservice -p > /dev/null 2>&1; sleep 5; setterm --reset";
 	logi("turning on monitor");
 	int rc = system(cmd);
 	if (rc != 0)
@@ -608,7 +612,6 @@ on_idle()
 		ch = joystick_getch();
 	}
 	turnon_monitor();
-	sleep(5);
 	erase();
 	refresh();
 	idle_start = time(NULL);
@@ -690,14 +693,36 @@ provider_loop(enum menu_id provider_id)
 }
 
 static void
+switch_camera()
+{
+	int rc;
+	char *cmd;
+
+	camera_enabled = !camera_enabled;
+
+	if (camera_enabled) {
+		cmd =
+			"omxplayer --live --dbus_name=camera --win 1600,0,1920,180 "
+			"--key-config /home/pi/bin/omxp_keys.txt http://192.168.1.1:14:8085"
+			">/dev/null 2>&1 &";
+		rc = system(cmd);
+		logi("camera on: %d", rc);
+	} else {
+		cmd = "/home/pi/src/ctv/dbuscontrol.sh stop >/dev/null 2>&1";
+		rc = system(cmd);
+		logi("camera off: %d", rc);
+	}
+}
+
+static void
 menu_action()
 {
-	int ch, rc;
+	int ch;
 	enum menu_id id = menu.items[menu.sel].id;
 	
 	switch (id) {
 	case MI_CAMERA:
-		camera_enabled = !camera_enabled;
+		switch_camera();
 		break;
 	case MI_ACTIVATION:
 		activate_tv_box();
@@ -722,8 +747,8 @@ menu_action()
 	case MI_SHUTDOWN:
 		print_status("SHUTDOWN>");
 		ch = joystick_getch();
-		if (ch == KEY_RIGHT || ch == 'C') {
-			rc = system("sudo shutdown -h now");
+		if (ch == KEY_RIGHT) {
+			system("sudo shutdown -h now");
 			logi("shutdown: %d", errno);
 			exit(1);
 		}
@@ -732,8 +757,8 @@ menu_action()
 	case MI_REBOOT:
 		print_status("REBOOT>");
 		ch = joystick_getch();
-		if (ch == KEY_RIGHT || ch == 'C') {
-			rc = system("sudo reboot");
+		if (ch == KEY_RIGHT) {
+			system("sudo reboot");
 			logi("reboot: %d", errno);
 		}
 		print_status("");

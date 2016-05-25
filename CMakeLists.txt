@@ -32,3 +32,6 @@ target_link_libraries(ctv ${LIBS})
 
 add_executable(joystick-test joystick.c joystick-test.c)
 target_link_libraries(joystick-test ${ncurses_LIBRARY} svc)
+
+add_executable(smith-parse smith-parse.c util.c smithsonian.c)
+target_link_libraries(smith-parse ${LIBS})

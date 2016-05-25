@@ -104,10 +104,10 @@ gpio_set_edge(int gpio, char *edge)
 static int
 gpio_fd_open(int gpio)
 {
-	int fd, len;
+	int fd;
 	char buf[MAX_BUF];
 
-	len = snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/value", gpio);
+	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/value", gpio);
 
 	fd = open(buf, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {
