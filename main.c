@@ -471,7 +471,7 @@ play_movie()
 	if (provider->error_number != 0)
 		statusf("part %d: %s", e->sel, provider->error());
 
-	char *url = provider->get_stream_url(e);
+	char *url = provider->get_stream_url(child);
 	if (provider->error_number != 0)
 		statusf("play_movie[%d]: %s", e->sel, provider->error());
 	logi("id: %d, url: %s", child->id, url);

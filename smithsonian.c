@@ -50,7 +50,7 @@ replace(char *s, char what, char with)
 static struct movie_list *
 load(struct provider *p)
 {
-	const int N = 10;
+	const int N = 20;
 	regex_t rex_episode, rex_title, rex_bcid;
 	struct buf episodes_html;
 	struct buf title_html;
