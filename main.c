@@ -403,8 +403,6 @@ run_player(const char *url)
 
 		switch (ch) {
 			case KEY_LEFT:
-			case 'D':
-			case 'a':
 				if (player_started == 1) {
 					print_status("stop");
 					rc = system("/home/pi/src/ctv/dbuscontrol.sh stop >/dev/null 2>&1");
@@ -414,8 +412,6 @@ run_player(const char *url)
 				quit = 1;
 				break;
 			case KEY_RIGHT:
-			case 'C':
-			case 'd':
 				if (player_started == 0) {
 					print_status("start");
 					rc = system(omxcmd);
@@ -429,15 +425,11 @@ run_player(const char *url)
 				}
 				break;
 			case KEY_DOWN:
-			case 'B':
-			case 's':
 				print_status("volume down");
 				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumedown >/dev/null 2>&1");
 				logi("dbus.volumedown. rc: %d\r", rc);
 				break;
 			case KEY_UP:
-			case 'A':
-			case 'w':
 				print_status("volume up");
 				rc = system("/home/pi/src/ctv/dbuscontrol.sh volumeup >/dev/null 2>&1");
 				logi("dbus.volumeup. rc: %d\r", rc);
@@ -573,7 +565,7 @@ load_selections(const char *name)
 static void
 turnoff_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -o > /dev/null 2>&1";
+	const char *cmd = "/opt/vc/bin/tvservice -o >> tvservice.log 2>&1";
 	logi("turning off monitor");
 	int rc = system(cmd);
 	if (rc != 0)
@@ -585,7 +577,9 @@ turnoff_monitor()
 static void
 turnon_monitor()
 {
-	const char *cmd = "/opt/vc/bin/tvservice -p > /dev/null 2>&1; sleep 5; setterm --reset";
+	const char *cmd =
+		"/opt/vc/bin/tvservice -p >> tvservice.log 2>&1; "
+		"sleep 5; setterm --reset >> tvservice.log";
 	logi("turning on monitor");
 	int rc = system(cmd);
 	if (rc != 0)
