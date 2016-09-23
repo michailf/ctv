@@ -43,7 +43,7 @@ statusf(const char *fmt, ...)
 
 	char msg[1000];
 	vsnprintf(msg, 999, fmt, args);
-	logfatal("%s", msg);
+	logi("%s", msg);
 
 	va_end (args);
 }

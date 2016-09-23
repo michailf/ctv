@@ -2,6 +2,8 @@
 #include <regex.h>
 
 void status_init(WINDOW *w, int row, bool dumb_term);
+
+/* print to the status line and to the log */
 void statusf(const char *fmt, ...);
 
 /* regexec for a text chunks from start to end */

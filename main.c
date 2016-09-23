@@ -461,8 +461,10 @@ play_movie()
 	}
 
 	struct movie_entry *child = provider->get_movie(e->id, e->sel);
-	if (provider->error_number != 0)
+	if (provider->error_number != 0) {
 		statusf("part %d: %s", e->sel, provider->error());
+		return;
+	}
 
 	char *url = provider->get_stream_url(child);
 	if (provider->error_number != 0)
