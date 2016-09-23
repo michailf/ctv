@@ -7,11 +7,11 @@ find_package(LibXml2 REQUIRED)
 find_library(ncurses_LIBRARY NAMES ncursesw)
 find_library(json_LIBRARY NAMES json-c)
 
-include(../../../w/common/macros.cmake)
+include(common/macros.cmake)
 include_directories(${OPENSSL_INCLUDE_DIR})
-include_directories(../../../w/)
+include_directories(.)
 include_directories(${CMAKE_BINARY_DIR})
-add_subdirectory(../../../w/common bin)
+add_subdirectory(common bin)
 
 gen_version_c()
 
