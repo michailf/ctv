@@ -11,10 +11,7 @@ CFLAGS := -nostdlib \
 
 LIBS=-L${HOME}/b/rpi-root2/usr/lib/arm-linux-gnueabihf
 
-all: test-rpi ctv-rpi libsvc.a
-
-test-rpi: test.o crt0.o
-	${CC} ${CFLAGS} crt0.o test.o ${LIBS} -lc -lgcc -o $@
+all: ctv-rpi libsvc.a
 
 net.o : ~/w/common/net.c
 

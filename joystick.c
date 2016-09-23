@@ -239,9 +239,9 @@ wait_event(int timeout, int *key)
 
 		lseek(fdset[i].fd, 0, SEEK_SET);
 		ssize_t was_read = read(fdset[i].fd, buf, 64);
-//		logi("i: %d, was_read: %d, b: %d,%d,%d\r", i, was_read, buf[0], buf[1], buf[1], buf[2]);
+		logi("i: %d, was_read: %d, b: %d,%d,%d\r", i, was_read, buf[0], buf[1], buf[1], buf[2]);
 		rc--;
-		ch = (i == MAX_PINS) ? buf[was_read-1] : keys[i];
+		ch = (i == MAX_PINS) ? buf[0] : keys[i];
 		pin = i;
 	}
 	

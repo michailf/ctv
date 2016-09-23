@@ -47,8 +47,14 @@ replace(char *s, char what, char with)
 	}
 }
 
+static const char *
+smith_error()
+{
+	return last_error;
+}
+
 static struct movie_list *
-load(struct provider *p)
+smith_load(struct provider *p)
 {
 	const int N = 20;
 	regex_t rex_episode, rex_title, rex_bcid;
@@ -65,6 +71,7 @@ load(struct provider *p)
 	regex_compile(&rex_bcid, "data-bcid=\"([^\"]+)\"");
 
 	buf_init(&episodes_html);
+	memset(chunks, 0, sizeof(char*) * N);
 
 	rc = fetch("http://www.smithsonianchannel.com/full-episodes", "episodes", &episodes_html);
 	if (rc != 0) {
@@ -84,11 +91,11 @@ load(struct provider *p)
 	struct movie_list *list = calloc(1, sizeof(struct movie_list));
 	list->items = calloc(N, sizeof(struct movie_entry));
 
-	for (i = 0; i < N; i++) {
+	for (i = 0; i < N && chunks[i] != NULL; i++) {
 		rc = regexec(&rex_episode, chunks[i], 4, m, 0);
 		if (rc != 0) {
 			provider->error_number = 1;
-			snprintf(last_error, 4095, "rex_episode: %d", rc);
+			snprintf(last_error, 4095, "rex_episode: %d, i: %d, chunk: %s", rc, i, chunks[i]);
 			return NULL;
 		}
 
@@ -149,7 +156,8 @@ smithsonian_get_provider() {
 	provider = calloc(1, sizeof(struct provider));
 
 	provider->name = strdup("smithsonian");
-	provider->load = load;
+	provider->load = smith_load;
+	provider->error = smith_error;
 
 	return provider;
 }

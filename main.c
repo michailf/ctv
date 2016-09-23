@@ -57,7 +57,7 @@ static char local_dir[PATH_MAX];
 static time_t idle_start = 0;
 static struct provider *provider; /* current provider */
 static struct movie_list *list;   /* current list of movies from provider */
-static struct termios orig_termios;
+//static struct termios orig_termios;
 
 static void
 init(int argc, char **argv)
@@ -93,7 +93,8 @@ init(int argc, char **argv)
 	mkdir(local_dir, 0700);
 
 	idle_start = time(NULL);
-	dumb_term = (getenv("TERM") == NULL);
+	const char *term = getenv("TERM");
+	dumb_term = (term == NULL) || (strlen(term) == 0);
 }
 
 enum scroll_mode {
@@ -366,7 +367,7 @@ static void
 exit_handler()
 {
 	if (dumb_term) {
-		tcsetattr(STDIN_FILENO,TCSAFLUSH, &orig_termios);
+//		tcsetattr(STDIN_FILENO,TCSAFLUSH, &orig_termios);
 	} else {
 		flushinp();
 		endwin();
@@ -478,6 +479,9 @@ activate_tv_box()
 {
 	char *user_code;
 	char *device_code;
+
+	print_status("Connecting to etvnet.com");
+	provider = etvnet_get_provider();
 
 	provider->get_activation_code(&user_code, &device_code);
 	if (provider->error_number != 0)
@@ -812,14 +816,14 @@ main(int argc, char **argv)
 	joystick_init();
 
 	if (dumb_term) {
-		tcgetattr(STDIN_FILENO, &orig_termios);
-		struct termios raw;
-		raw = orig_termios;
-		raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-		raw.c_oflag &= ~(OPOST);
-		raw.c_cflag |= (CS8);
-		raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-		tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+	//	tcgetattr(STDIN_FILENO, &orig_termios);
+	//	struct termios raw;
+	//	raw = orig_termios;
+	//	raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+	//	raw.c_oflag &= ~(OPOST);
+	//	raw.c_cflag |= (CS8);
+	//	raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+	//	tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 	} else {
 		init_ui(&ui);
 		atexit(exit_handler);
